@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #1e293b;
+    background-color: #f1f5f9;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-hindi {
+  font-family: 'Noto Sans Devanagari', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Pulse glow for incoming orders */
+@keyframes ring-alert {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(22, 163, 74, 0);
+  }
+}
+
+.animate-order-alert {
+  animation: ring-alert 2s infinite ease-in-out;
+}
+
+/* Scroll-triggered sticky shop header (.shop-header-sticky) */
+.shop-header-sticky {
+  height: 11rem; /* default expanded height (176px) */
+  transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: height, background-color, transform;
+}
+
+.shop-header-sticky.scrolled {
+  height: 3.5rem; /* compact shrunk height (56px) */
+}
+
+/* Hide shop description smoothly using CSS transforms and opacity */
+.shop-header-sticky .shop-description {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  max-height: 5rem;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform, max-height;
+}
+
+.shop-header-sticky.scrolled .shop-description {
+  opacity: 0;
+  transform: translateY(-16px) scale(0.96);
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shop-header-sticky .shop-description-wrapper {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform, max-height;
+}
+
+.shop-header-sticky.scrolled .shop-description-wrapper {
+  opacity: 0;
+  transform: translateY(-16px);
+  max-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Compact header elements */
+.shop-header-sticky .shop-compact-title {
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.shop-header-sticky.scrolled .shop-compact-title {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}

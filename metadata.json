@@ -1,0 +1,6 @@
+{
+  "name": "Local Marketplace Platform",
+  "description": "Multi-tenant local market platform with Customer, Seller, and Admin portals supporting unit-based pricing, store pickup, delivery, and automated commission settlements.",
+  "requestFramePermissions": ["geolocation", "camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

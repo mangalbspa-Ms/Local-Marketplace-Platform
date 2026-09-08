@@ -1,0 +1,104 @@
+-- Local Marketplace Schema Migration
+-- Version: 002_subscriptions_and_ai.sql
+-- Subscriptions, Invoicing, AI Audits, Voice Drafts
+
+-- 1. SUBSCRIPTION PLANS TABLE
+CREATE TABLE IF NOT EXISTS subscription_plans (
+  id VARCHAR(64) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price NUMERIC(10, 2) NOT NULL,
+  billing_interval VARCHAR(32) NOT NULL DEFAULT 'MONTHLY', -- 'MONTHLY', 'QUARTERLY', 'YEARLY'
+  commission_percentage NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
+  max_products INTEGER,
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_popular BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INTEGER NOT NULL DEFAULT 10,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_plans_active ON subscription_plans(is_active);
+
+-- 2. SELLER SUBSCRIPTIONS TABLE
+CREATE TABLE IF NOT EXISTS seller_subscriptions (
+  id VARCHAR(64) PRIMARY KEY,
+  seller_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  shop_id VARCHAR(64) NOT NULL REFERENCES shops(id) ON DELETE RESTRICT,
+  plan_id VARCHAR(64) NOT NULL REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'TRIAL', 'PAST_DUE', 'CANCELLED', 'EXPIRED'
+  current_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+  current_period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+  auto_renew BOOLEAN NOT NULL DEFAULT TRUE,
+  trial_ends_at TIMESTAMP WITH TIME ZONE,
+  cancelled_at TIMESTAMP WITH TIME ZONE,
+  payment_method VARCHAR(32) NOT NULL DEFAULT 'UPI_AUTOPAY',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_seller_sub UNIQUE (shop_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sub_seller ON seller_subscriptions(seller_id);
+CREATE INDEX IF NOT EXISTS idx_sub_status ON seller_subscriptions(status);
+
+-- 3. SUBSCRIPTION INVOICES TABLE
+CREATE TABLE IF NOT EXISTS subscription_invoices (
+  id VARCHAR(64) PRIMARY KEY,
+  invoice_number VARCHAR(64) UNIQUE NOT NULL,
+  seller_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  shop_id VARCHAR(64) NOT NULL REFERENCES shops(id) ON DELETE RESTRICT,
+  subscription_id VARCHAR(64) NOT NULL REFERENCES seller_subscriptions(id) ON DELETE CASCADE,
+  plan_id VARCHAR(64) NOT NULL REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+  plan_name VARCHAR(255) NOT NULL,
+  amount NUMERIC(10, 2) NOT NULL,
+  tax_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  total_amount NUMERIC(10, 2) NOT NULL,
+  billing_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+  billing_period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PAID', 'FAILED', 'WAIVED'
+  payment_id VARCHAR(64),
+  paid_at TIMESTAMP WITH TIME ZONE,
+  payment_method VARCHAR(32),
+  pdf_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoice_shop ON subscription_invoices(shop_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_status ON subscription_invoices(status);
+
+-- 4. BILLING TRANSACTIONS TABLE
+CREATE TABLE IF NOT EXISTS billing_transactions (
+  id VARCHAR(64) PRIMARY KEY,
+  seller_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  shop_id VARCHAR(64) NOT NULL REFERENCES shops(id) ON DELETE RESTRICT,
+  invoice_id VARCHAR(64) REFERENCES subscription_invoices(id) ON DELETE SET NULL,
+  amount NUMERIC(10, 2) NOT NULL,
+  type VARCHAR(32) NOT NULL, -- 'SUBSCRIPTION_FEE', 'COMMISSION_DEDUCTION', 'SETTLEMENT_PAYOUT'
+  gateway_payment_id VARCHAR(128),
+  gateway_order_id VARCHAR(128),
+  status VARCHAR(32) NOT NULL DEFAULT 'SUCCESS',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tx_shop ON billing_transactions(shop_id);
+
+-- 5. AI VOICE DRAFTS & AUDIT RECORDS TABLE
+CREATE TABLE IF NOT EXISTS ai_audit_records (
+  id VARCHAR(64) PRIMARY KEY,
+  actor_user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  shop_id VARCHAR(64) NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  product_id VARCHAR(64),
+  action_type VARCHAR(64) NOT NULL, -- 'CREATE_PRODUCT', 'UPDATE_PRICE', 'UPDATE_STOCK', 'TOGGLE_AVAILABILITY'
+  source VARCHAR(32) NOT NULL DEFAULT 'AI', -- 'AI', 'SELLER', 'ADMIN'
+  raw_transcript TEXT NOT NULL,
+  language VARCHAR(16) NOT NULL DEFAULT 'hi',
+  extracted_entities JSONB NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'CONFIRMED', -- 'DRAFTED', 'CONFIRMED', 'CANCELLED', 'REJECTED'
+  old_value JSONB,
+  new_value JSONB,
+  timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_audit_shop ON ai_audit_records(shop_id);
+CREATE INDEX IF NOT EXISTS idx_ai_audit_timestamp ON ai_audit_records(timestamp DESC);
