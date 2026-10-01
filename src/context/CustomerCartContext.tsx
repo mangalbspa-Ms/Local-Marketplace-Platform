@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { Product } from '../types/product.ts';
 import { Shop } from '../types/market.ts';
 import { FulfillmentType } from '../types/order.ts';
+import { calculateOrderTotal } from '../services/pricingEngine.ts';
 
 export interface CartItem {
   product: Product;
@@ -329,8 +330,22 @@ export const CustomerCartProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const finalPayableAmount = useMemo(() => {
     if (items.length === 0) return 0;
-    return Math.round((itemSubtotal + deliveryFee + platformFee) * 100) / 100;
-  }, [items, itemSubtotal, deliveryFee, platformFee]);
+    const orderItems = items.map((item) => ({
+      productId: item.product.id,
+      productName: item.product.name,
+      unitType: item.product.fractionalConfig.unitType,
+      baseUnit: item.product.fractionalConfig.baseUnit,
+      basePriceAtOrderTime: item.product.fractionalConfig.basePrice,
+      orderedQuantityMultiplier: item.multiplier,
+      orderedQuantityDisplay: item.displayLabel,
+      quantityInBaseUnits: item.quantityInBaseUnits,
+      unitItemPriceCalculated: item.unitPrice,
+      quantityCount: item.quantityCount,
+      lineItemTotal: item.lineTotal,
+      isAvailable: true,
+    }));
+    return calculateOrderTotal(orderItems, { deliveryFee, platformFee });
+  }, [items, deliveryFee, platformFee]);
 
   return (
     <CustomerCartContext.Provider

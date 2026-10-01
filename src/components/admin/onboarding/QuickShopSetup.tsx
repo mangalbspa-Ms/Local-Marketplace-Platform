@@ -482,23 +482,28 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
 
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header & Step Tracker */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl text-white">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
-              <Store className="w-5 h-5" />
+    <div className="space-y-4 max-w-4xl mx-auto">
+      {/* Compact Header & Step Tracker */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm text-white space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+              <Store className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">Quick Shop Setup</h1>
-              <p className="text-xs text-slate-400">
-                In-person mobile onboarding assistant for local shopkeepers
+              <h1 className="text-base font-extrabold text-white flex items-center gap-2">
+                <span>Quick Shop Onboarding</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                  Field Agent
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-400">
+                Rapid shopkeeper registration, operations policy, and starter catalog configuration
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
             <button
               onClick={() => {
                 const text = prompt('बोलकर या लिखकर दुकान का विवरण दें (Speak or paste shop details):\n\nउदा: "राम की किराना दुकान है। फोन 9876543210। चीनी 70 रुपये किलो। चावल 50 रुपये किलो। तेल 140 रुपये लीटर। काजू 900 रुपये किलो।"');
@@ -534,27 +539,27 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                     .catch((err) => alert('AI parsing failed: ' + err.message));
                 }
               }}
-              className="py-1.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
+              className="py-1 px-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition"
             >
               <Zap className="w-3.5 h-3.5" />
-              Add Shop with AI (🎤 AI ऑनबोर्डिंग)
+              <span>AI Assistant</span>
             </button>
 
-            <div className="flex items-center gap-1.5 bg-slate-800/80 p-1 rounded-2xl border border-slate-700 text-xs font-bold">
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
               {[
-                { num: 1, label: 'Basics' },
-                { num: 2, label: 'Operations' },
+                { num: 1, label: 'Identity' },
+                { num: 2, label: 'Hours' },
                 { num: 3, label: 'Finance' },
                 { num: 4, label: 'Catalog' },
               ].map((s) => (
                 <button
                   key={s.num}
                   onClick={() => setStep(s.num)}
-                  className={`px-3 py-1.5 rounded-xl transition ${
+                  className={`px-2.5 py-1 rounded-lg transition text-[11px] ${
                     step === s.num
                       ? 'bg-indigo-600 text-white shadow-xs'
                       : step > s.num
-                      ? 'text-emerald-400 hover:bg-slate-700'
+                      ? 'text-emerald-400 hover:bg-slate-800'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -566,7 +571,7 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
         </div>
 
         {error && (
-          <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-400 text-xs">
+          <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-400 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -574,74 +579,95 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
 
         {/* Step 1: Seller & Shop Identity */}
         {step === 1 && (
-          <div className="mt-6 space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Seller Full Name *</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+          <div className="space-y-3.5 pt-1">
+            {/* Section 1: Owner Information */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Seller / Owner Information</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Seller Full Name *</label>
+                  <div className="relative">
+                    <User className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Ramesh Kumar"
+                      value={sellerName}
+                      onChange={(e) => setSellerName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Seller Mobile Number *</label>
+                  <div className="relative">
+                    <Smartphone className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="tel"
+                      placeholder="e.g. 9876543210"
+                      value={sellerPhone}
+                      onChange={(e) => setSellerPhone(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Email Address (Optional)</label>
                   <input
-                    type="text"
-                    placeholder="e.g. Ramesh Kumar"
-                    value={sellerName}
-                    onChange={(e) => setSellerName(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
+                    type="email"
+                    placeholder="e.g. shop@example.com"
+                    value={sellerEmail}
+                    onChange={(e) => setSellerEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Seller Mobile Number *</label>
-                <div className="relative">
-                  <Smartphone className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                  <input
-                    type="tel"
-                    placeholder="e.g. 9876543210"
-                    value={sellerPhone}
-                    onChange={(e) => setSellerPhone(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
-                  />
-                </div>
+            {/* Section 2: Shop Details */}
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pt-1">
+                <Store className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Shop Profile & Categorization</span>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Shop Name *</label>
-                <div className="relative">
-                  <Store className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Shop Name *</label>
                   <input
                     type="text"
-                    placeholder="e.g. Ramesh Kirana & General Store"
+                    placeholder="e.g. Ramesh Kirana Store"
                     value={shopName}
                     onChange={(e) => setShopName(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none font-bold"
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Category *</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 outline-hidden"
-                >
-                  <option value="Grocery & Kirana">Grocery & Kirana</option>
-                  <option value="Fresh Produce">Fresh Produce (Vegetables & Fruits)</option>
-                  <option value="Dairy & Sweets">Dairy & Sweets</option>
-                  <option value="Meat & Fish">Meat & Fish</option>
-                  <option value="Bakery & Snacks">Bakery & Snacks</option>
-                  <option value="Pooja Samagri">Pooja Samagri</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Primary Category *</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white focus:border-indigo-500 outline-none"
+                  >
+                    <option value="Grocery & Kirana">Grocery & Kirana</option>
+                    <option value="Fresh Produce">Fresh Produce (Vegetables & Fruits)</option>
+                    <option value="Dairy & Sweets">Dairy & Sweets</option>
+                    <option value="Meat & Fish">Meat & Fish</option>
+                    <option value="Bakery & Snacks">Bakery & Snacks</option>
+                    <option value="Pooja Samagri">Pooja Samagri</option>
+                  </select>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Target Local Market *</label>
-                <div className="relative">
-                  <Building2 className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Target Market Territory *</label>
                   <select
                     value={marketId}
                     onChange={(e) => setMarketId(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:border-indigo-500 outline-hidden"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white focus:border-indigo-500 outline-none"
                   >
                     {markets.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -651,62 +677,60 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Shop / Booth Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Shop No. 14, Main Market"
-                  value={shopNumber}
-                  onChange={(e) => setShopNumber(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
-                />
+            {/* Section 3: Address & Geolocation */}
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pt-1">
+                <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Physical Address & Location</span>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                <div className="sm:col-span-1">
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Shop / Booth No.</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Shop No. 14"
+                    value={shopNumber}
+                    onChange={(e) => setShopNumber(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
 
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Physical Address *</label>
-                <div className="relative">
-                  <MapPin className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Street Address *</label>
                   <input
                     type="text"
                     placeholder="e.g. Near Shiv Mandir, Sector 4, Rohini"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Landmark</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Opp. Post Office"
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Landmark</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Opposite Post Office"
-                  value={landmark}
-                  onChange={(e) => setLandmark(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-500 focus:border-indigo-500 outline-hidden"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300">GPS Coordinates</label>
-                  <button
-                    type="button"
-                    onClick={handleGetCurrentLocation}
-                    className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
-                  >
-                    <Compass className="w-3 h-3" /> Detect Here
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
+              {/* Coordinates row */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <span className="font-bold text-slate-300">Coordinates:</span>
                   <input
                     type="number"
                     step="0.0001"
                     placeholder="Lat"
                     value={latitude}
                     onChange={(e) => setLatitude(parseFloat(e.target.value))}
-                    className="bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-hidden"
+                    className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono"
                   />
                   <input
                     type="number"
@@ -714,20 +738,29 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                     placeholder="Lng"
                     value={longitude}
                     onChange={(e) => setLongitude(parseFloat(e.target.value))}
-                    className="bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-hidden"
+                    className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono"
                   />
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleGetCurrentLocation}
+                  className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center justify-center gap-1 px-2.5 py-1 bg-indigo-500/10 rounded-md border border-indigo-500/30 transition self-end sm:self-auto"
+                >
+                  <Compass className="w-3 h-3" />
+                  <span>Detect My GPS</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end pt-2 border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition"
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-lg flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition"
               >
-                Next: Operations & Hours
-                <ArrowRight className="w-4 h-4" />
+                <span>Next: Operations & Hours</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -735,127 +768,139 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
 
         {/* Step 2: Timings & Fulfillment */}
         {step === 2 && (
-          <div className="mt-6 space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Opening Time</label>
-                <div className="relative">
-                  <Clock className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                  <input
-                    type="time"
-                    value={openTime}
-                    onChange={(e) => setOpenTime(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white outline-hidden"
-                  />
+          <div className="space-y-3.5 pt-1">
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Operating Schedule</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Opening Time</label>
+                  <div className="relative">
+                    <Clock className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="time"
+                      value={openTime}
+                      onChange={(e) => setOpenTime(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-400 font-bold mb-1">Closing Time</label>
+                  <div className="relative">
+                    <Clock className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="time"
+                      value={closeTime}
+                      onChange={(e) => setCloseTime(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Closing Time</label>
-                <div className="relative">
-                  <Clock className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
-                  <input
-                    type="time"
-                    value={closeTime}
-                    onChange={(e) => setCloseTime(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-xs text-white outline-hidden"
-                  />
-                </div>
+            {/* Fulfillment Options */}
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pt-1">
+                <Truck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Fulfillment Channels & Delivery Policy</span>
               </div>
 
-              <div className="sm:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-300">Fulfillment Options</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${pickupEnabled ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-slate-800/60 border-slate-700 text-slate-400'}`}>
-                    <input
-                      type="checkbox"
-                      checked={pickupEnabled}
-                      onChange={(e) => setPickupEnabled(e.target.checked)}
-                      className="hidden"
-                    />
-                    <Store className="w-4 h-4" />
-                    <div>
-                      <div className="text-xs font-bold">Store Pickup</div>
-                      <div className="text-[10px] opacity-75">Customer collects from shop</div>
-                    </div>
-                  </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition ${pickupEnabled ? 'bg-indigo-600/15 border-indigo-500/50 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                  <input
+                    type="checkbox"
+                    checked={pickupEnabled}
+                    onChange={(e) => setPickupEnabled(e.target.checked)}
+                    className="hidden"
+                  />
+                  <Store className="w-4 h-4 text-indigo-400" />
+                  <div>
+                    <div className="text-xs font-bold">Store Pickup</div>
+                    <div className="text-[10px] text-slate-400">Customer counter collection</div>
+                  </div>
+                </label>
 
-                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${deliveryEnabled ? 'bg-indigo-600/20 border-indigo-500 text-white' : 'bg-slate-800/60 border-slate-700 text-slate-400'}`}>
-                    <input
-                      type="checkbox"
-                      checked={deliveryEnabled}
-                      onChange={(e) => setDeliveryEnabled(e.target.checked)}
-                      className="hidden"
-                    />
-                    <Truck className="w-4 h-4" />
-                    <div>
-                      <div className="text-xs font-bold">Home Delivery</div>
-                      <div className="text-[10px] opacity-75">Local delivery by shopkeeper</div>
-                    </div>
-                  </label>
-                </div>
+                <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition ${deliveryEnabled ? 'bg-indigo-600/15 border-indigo-500/50 text-white' : 'bg-slate-950 border-slate-800 text-slate-400'}`}>
+                  <input
+                    type="checkbox"
+                    checked={deliveryEnabled}
+                    onChange={(e) => setDeliveryEnabled(e.target.checked)}
+                    className="hidden"
+                  />
+                  <Truck className="w-4 h-4 text-teal-400" />
+                  <div>
+                    <div className="text-xs font-bold">Home Delivery</div>
+                    <div className="text-[10px] text-slate-400">Local delivery by merchant</div>
+                  </div>
+                </label>
               </div>
 
               {deliveryEnabled && (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Min Order for Delivery (₹)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-bold mb-1">Min Order (₹)</label>
                     <input
                       type="number"
                       value={minOrderValue}
                       onChange={(e) => setMinOrderValue(Number(e.target.value))}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-mono"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Delivery Fee (₹)</label>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-bold mb-1">Delivery Fee (₹)</label>
                     <input
                       type="number"
                       value={deliveryFee}
                       onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-mono"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Free Delivery Above (₹)</label>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-bold mb-1">Free Delivery (₹)</label>
                     <input
                       type="number"
                       value={freeDeliveryThreshold}
                       onChange={(e) => setFreeDeliveryThreshold(Number(e.target.value))}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-mono"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Max Delivery Radius (Km)</label>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 font-bold mb-1">Radius (Km)</label>
                     <input
                       type="number"
                       value={maxDeliveryRadiusKm}
                       onChange={(e) => setMaxDeliveryRadiusKm(Number(e.target.value))}
-                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-indigo-500 font-mono"
                     />
                   </div>
-                </>
+                </div>
               )}
             </div>
 
-            <div className="flex justify-between pt-4">
+            <div className="flex justify-between pt-2 border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl flex items-center gap-2 transition"
+                className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg flex items-center gap-1.5 transition"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition"
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-lg flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition"
               >
-                Next: Business Model & Governance
-                <ArrowRight className="w-4 h-4" />
+                <span>Next: Business & Governance</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -863,14 +908,14 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
 
         {/* Step 3: Business Model & Governance */}
         {step === 3 && (
-          <div className="mt-6 space-y-6 animate-fade-in">
-            {/* Management Mode Selection */}
+          <div className="space-y-3.5 pt-1">
+            {/* Management Mode */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-400" />
-                Shop Management Mode (Phase 10)
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Shop Management Mode</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
                   {
                     id: 'SELLER_MANAGED',
@@ -890,10 +935,10 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                 ].map((mode) => (
                   <label
                     key={mode.id}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                    className={`p-2.5 rounded-lg border cursor-pointer transition flex flex-col justify-between ${
                       managementMode === mode.id
-                        ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-md'
-                        : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:border-slate-600'
+                        ? 'bg-indigo-600/15 border-indigo-500/50 text-white shadow-xs'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                     }`}
                   >
                     <input
@@ -906,26 +951,26 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                     />
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-white">{mode.title}</span>
-                      {managementMode === mode.id && <Check className="w-4 h-4 text-indigo-400" />}
+                      {managementMode === mode.id && <Check className="w-3.5 h-3.5 text-indigo-400" />}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">{mode.desc}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">{mode.desc}</p>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Business Model Selection */}
-            <div className="space-y-2 pt-2">
-              <label className="text-xs font-bold text-slate-300 flex items-center gap-2">
-                <Percent className="w-4 h-4 text-emerald-400" />
-                Revenue & Business Model
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Revenue Model */}
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pt-1">
+                <Percent className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Revenue & Billing Model</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <label
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition ${
+                  className={`p-2.5 rounded-lg border cursor-pointer transition ${
                     billingMode === 'COMMISSION'
-                      ? 'bg-emerald-600/20 border-emerald-500 text-white'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-400'
+                      ? 'bg-emerald-600/15 border-emerald-500/50 text-white'
+                      : 'bg-slate-950 border-slate-800 text-slate-400'
                   }`}
                 >
                   <input
@@ -938,16 +983,16 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white">Order Commission Model</span>
-                    {billingMode === 'COMMISSION' && <Check className="w-4 h-4 text-emerald-400" />}
+                    {billingMode === 'COMMISSION' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">Platform takes commission per completed order.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Platform takes commission per completed order.</p>
                 </label>
 
                 <label
-                  className={`p-3.5 rounded-2xl border cursor-pointer transition ${
+                  className={`p-2.5 rounded-lg border cursor-pointer transition ${
                     billingMode === 'SUBSCRIPTION'
-                      ? 'bg-indigo-600/20 border-indigo-500 text-white'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-400'
+                      ? 'bg-indigo-600/15 border-indigo-500/50 text-white'
+                      : 'bg-slate-950 border-slate-800 text-slate-400'
                   }`}
                 >
                   <input
@@ -960,19 +1005,19 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                   />
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-white">Monthly Subscription Plan</span>
-                    {billingMode === 'SUBSCRIPTION' && <Check className="w-4 h-4 text-indigo-400" />}
+                    {billingMode === 'SUBSCRIPTION' && <Check className="w-3.5 h-3.5 text-indigo-400" />}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1">Fixed periodic subscription fee without order commission.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Fixed periodic subscription fee without order commission.</p>
                 </label>
               </div>
 
               {billingMode === 'SUBSCRIPTION' && (
-                <div className="mt-3 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300">Select Subscription Plan</label>
+                <div className="space-y-1">
+                  <label className="block text-[11px] text-slate-400 font-bold">Select Active Subscription Plan</label>
                   <select
                     value={selectedPlanId}
                     onChange={(e) => setSelectedPlanId(e.target.value)}
-                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 outline-hidden"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-indigo-500 outline-none"
                   >
                     <option value="">-- Choose active plan --</option>
                     {plans.map((p) => (
@@ -986,45 +1031,46 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
             </div>
 
             {/* Payouts & GST */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">Seller UPI Payout ID</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-800/80">
+              <div>
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">Seller UPI Payout ID</label>
                 <input
                   type="text"
                   placeholder="e.g. ramesh@okhdfcbank"
                   value={payoutUpiId}
                   onChange={(e) => setPayoutUpiId(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-300">GSTIN / Trade Number (Optional)</label>
+              <div>
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">GSTIN / Trade No. (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. 07AAAAA0000A1Z5"
                   value={gstin}
                   onChange={(e) => setGstin(e.target.value)}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white outline-hidden uppercase"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-2 text-xs text-white outline-none uppercase focus:border-indigo-500"
                 />
               </div>
             </div>
 
-            <div className="flex justify-between pt-4">
+            <div className="flex justify-between pt-2 border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl flex items-center gap-2 transition"
+                className="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg flex items-center gap-1.5 transition"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
               <button
                 type="button"
                 onClick={() => setStep(4)}
-                className="py-2.5 px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl flex items-center gap-2 transition"
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-lg flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition"
               >
-                Next: Starter Product Catalog
-                <ArrowRight className="w-4 h-4" />
+                <span>Next: Starter Catalog</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -1032,90 +1078,90 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
 
         {/* Step 4: Rapid Product Catalog */}
         {step === 4 && (
-          <div className="mt-6 space-y-6 animate-fade-in">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-800/60 p-4 rounded-2xl border border-slate-700">
+          <div className="space-y-3 pt-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800">
               <div>
-                <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                <h3 className="text-xs font-black text-white flex items-center gap-2">
                   <Package className="w-4 h-4 text-indigo-400" />
-                  Initial Catalog ({products.length} Products)
+                  <span>Initial Catalog ({products.length} Products)</span>
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Pre-configured from "{category}". Add, edit prices, or paste CSV.
+                <p className="text-[10px] text-slate-400">
+                  Pre-configured from "{category}". Edit prices, stock, or paste CSV.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 self-end sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setShowCsvBox(!showCsvBox)}
-                  className="py-1.5 px-3 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1.5 transition"
+                  className="py-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg flex items-center gap-1 transition border border-slate-700/60"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
-                  Paste CSV
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-teal-400" />
+                  <span>CSV</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleAddEmptyProduct}
-                  className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition shadow-xs"
+                  className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1 transition shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Add Row
+                  <span>Add Row</span>
                 </button>
               </div>
             </div>
 
             {showCsvBox && (
-              <div className="p-4 bg-slate-800 border border-slate-700 rounded-2xl space-y-3 animate-fade-in">
+              <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2 animate-fade-in">
                 <div className="flex justify-between items-center text-xs text-slate-300">
-                  <span className="font-bold">Format: Product Name, Price, Unit, Stock, Category</span>
+                  <span className="font-bold text-[11px]">Format: Product Name, Price, Unit, Stock, Category</span>
                   <button onClick={() => setShowCsvBox(false)} className="text-slate-400 hover:text-white">✕</button>
                 </div>
                 <textarea
-                  rows={4}
-                  placeholder={`Amul Butter, 58, packet, 40, Dairy & Sweets\nTata Salt, 28, packet, 50, Grocery & Kirana\nWheat Flour, 45, kg, 100, Grocery & Kirana`}
+                  rows={3}
+                  placeholder={`Amul Butter, 58, packet, 40, Dairy & Sweets\nTata Salt, 28, packet, 50, Grocery & Kirana`}
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white font-mono outline-hidden"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white font-mono outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleParseCsv}
-                  className="py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition"
+                  className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition"
                 >
                   Import CSV Rows
                 </button>
               </div>
             )}
 
-            {/* Product Table / Mobile Cards */}
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {/* Compact Product Table */}
+            <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
               {products.map((prod, idx) => (
                 <div
                   key={prod.id}
-                  className="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between"
+                  className="bg-slate-950 border border-slate-800/80 rounded-lg p-2 flex flex-col sm:flex-row items-start sm:items-center gap-2 justify-between hover:border-slate-700 transition"
                 >
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-2 w-full">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-1.5 w-full">
                     <input
                       type="text"
                       placeholder="Product Name"
                       value={prod.name}
                       onChange={(e) => handleProductChange(idx, 'name', e.target.value)}
-                      className="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white font-bold outline-hidden"
+                      className="sm:col-span-2 bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-white font-bold outline-none focus:border-indigo-500"
                     />
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <span className="text-xs text-slate-400 font-bold">₹</span>
                       <input
                         type="number"
                         placeholder="Price"
                         value={prod.price}
                         onChange={(e) => handleProductChange(idx, 'price', Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-xs text-emerald-400 font-bold outline-hidden"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-xs text-emerald-400 font-bold outline-none focus:border-indigo-500 font-mono"
                       />
                       <select
                         value={prod.unit}
                         onChange={(e) => handleProductChange(idx, 'unit', e.target.value)}
-                        className="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-xs text-slate-300 outline-hidden"
+                        className="bg-slate-900 border border-slate-800 rounded px-1 py-1 text-xs text-slate-300 outline-none"
                       >
                         <option value="kg">kg</option>
                         <option value="g">g</option>
@@ -1128,14 +1174,14 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                       </select>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-slate-400">Stock:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-slate-400">Qty:</span>
                       <input
                         type="number"
                         placeholder="Stock"
                         value={prod.stock}
                         onChange={(e) => handleProductChange(idx, 'stock', Number(e.target.value))}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-xs text-white outline-hidden"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-xs text-white outline-none focus:border-indigo-500 font-mono"
                       />
                     </div>
                   </div>
@@ -1145,7 +1191,7 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                       type="button"
                       title="Duplicate"
                       onClick={() => handleDuplicateProduct(idx)}
-                      className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700"
+                      className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -1153,7 +1199,7 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
                       type="button"
                       title="Remove"
                       onClick={() => handleRemoveProduct(idx)}
-                      className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-500/10"
+                      className="p-1 text-rose-400 hover:text-rose-300 rounded hover:bg-rose-500/10"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1163,29 +1209,31 @@ export const QuickShopSetup: React.FC<QuickShopSetupProps> = ({ onSuccess }) => 
             </div>
 
             {/* Submission Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-3 border-t border-slate-800">
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="w-full sm:w-auto py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition"
+                className="w-full sm:w-auto py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 transition"
               >
-                <ArrowLeft className="w-4 h-4" /> Back
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
 
               <button
                 type="button"
                 disabled={isLoading}
                 onClick={handleSubmitOnboarding}
-                className="w-full sm:w-auto py-3 px-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition disabled:opacity-50"
+                className="w-full sm:w-auto py-2 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30 transition disabled:opacity-50"
               >
                 {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Creating Shop & Account...
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Creating Shop & Account...</span>
                   </span>
                 ) : (
-                  <span className="flex items-center gap-2">
-                    <Zap className="w-4 h-4" /> Complete Quick Onboard & Go Live
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Complete Onboard & Go Live</span>
                   </span>
                 )}
               </button>

@@ -21,6 +21,9 @@ declare global {
 
 export function authenticate(required: boolean = true) {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
     const authHeader = req.headers.authorization;
     const customUserId = (req.headers['x-auth-user-id'] || req.headers['x-user-id']) as string | undefined;
 
@@ -59,6 +62,14 @@ export function authenticate(required: boolean = true) {
     // 1. Direct DB user resolution
     let user = candidateId ? (db.getUserById(candidateId) || db.getUserByPhone(candidateId)) : undefined;
 
+    // 1.1 Match embedded user id (e.g. usr_cust_02, usr_seller_01) in token
+    if (!user && candidateId) {
+      const userMatch = candidateId.match(/(usr_[a-z]+_\d+)/);
+      if (userMatch) {
+        user = db.getUserById(userMatch[1]);
+      }
+    }
+
     // 2. Custom header resolution if token did not directly match
     if (!user && customUserId) {
       const cleanCustom = customUserId.replace(/^token_/, '').replace(/^mock_token_/, '').trim();
@@ -71,6 +82,10 @@ export function authenticate(required: boolean = true) {
         user = db.getUserById('usr_seller_01');
       } else if (candidateId.includes('seller_02')) {
         user = db.getUserById('usr_seller_02');
+      } else if (candidateId.includes('seller_03')) {
+        user = db.getUserById('usr_seller_03');
+      } else if (candidateId.startsWith('usr_seller_')) {
+        user = db.getUserById(candidateId) || db.getUserById('usr_seller_01');
       } else if (candidateId.includes('admin')) {
         user = db.getUserById('usr_admin_01');
       } else if (candidateId.includes('cust')) {
@@ -89,11 +104,17 @@ export function authenticate(required: boolean = true) {
       return next(new UnauthorizedError('User account is deactivated.'));
     }
 
+    const customShopId = (req.headers['x-shop-id'] as string) || (req.headers['x-selected-shop-id'] as string);
+    const resolvedShopId =
+      customShopId ||
+      user.shopId ||
+      (user.role === UserRole.SELLER ? db.getShopsBySeller(user.id)[0]?.id : undefined);
+
     req.user = {
       userId: user.id,
       id: user.id,
       role: user.role,
-      shopId: user.shopId,
+      shopId: resolvedShopId,
       phone: user.phone,
       email: user.email,
     };

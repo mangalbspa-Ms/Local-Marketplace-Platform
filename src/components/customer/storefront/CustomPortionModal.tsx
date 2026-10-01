@@ -63,11 +63,14 @@ export const CustomPortionModal: React.FC<CustomPortionModalProps> = ({
 
   // Active Multiplier and Totals based on current Tab
   const activeMultiplier = entryMode === 'quantity' ? qtyCalculatedMultiplier : amountCalculation.multiplier;
-  const calculatedUnitPrice =
+  const rawBase = config?.basePrice ?? (product as any)?.basePricePerUnit ?? (product as any)?.basePrice ?? 0;
+  const safeBase = Number.isFinite(Number(rawBase)) && !Number.isNaN(Number(rawBase)) && Number(rawBase) >= 0 ? Number(rawBase) : 0;
+  const rawUnitPrice =
     entryMode === 'quantity' && config
-      ? Math.round(config.basePrice * activeMultiplier * 100) / 100
-      : amountCalculation.exactPrice;
-  const calculatedTotal = Math.round(calculatedUnitPrice * quantityCount * 100) / 100;
+      ? Math.round(safeBase * (activeMultiplier || 0) * 100) / 100
+      : Number(amountCalculation.exactPrice || 0);
+  const calculatedUnitPrice = Number.isFinite(rawUnitPrice) && !Number.isNaN(rawUnitPrice) ? rawUnitPrice : 0;
+  const calculatedTotal = Math.round(calculatedUnitPrice * (quantityCount || 1) * 100) / 100;
 
   // Validation
   const isValid =

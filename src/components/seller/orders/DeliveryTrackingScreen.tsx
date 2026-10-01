@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface DeliveryTrackingScreenProps {
@@ -138,19 +140,16 @@ export const DeliveryTrackingScreen: React.FC<DeliveryTrackingScreenProps> = ({
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div className="flex items-center space-x-2">
                     <span className="font-mono font-black text-base text-white">{order.orderNumber}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                      isOutForDelivery
-                        ? 'bg-indigo-950 border-indigo-500 text-indigo-300 animate-pulse'
-                        : isCompleted
-                        ? 'bg-emerald-950 border-emerald-500 text-emerald-300'
-                        : 'bg-purple-950 border-purple-500 text-purple-300'
-                    }`}>
-                      {t(`status.${order.status}`)}
-                    </span>
+                    <OrderStatusBadge
+                      status={order.status}
+                      variant="seller"
+                      size="sm"
+                      customLabel={t(`status.${order.status}`)}
+                    />
                   </div>
 
                   <span className="font-mono font-bold text-sm text-emerald-400">
-                    ₹{order.financials.customerTotal.toFixed(2)}
+                    ₹{calculateOrderTotal(order).toFixed(2)}
                   </span>
                 </div>
 
@@ -208,6 +207,29 @@ export const DeliveryTrackingScreen: React.FC<DeliveryTrackingScreenProps> = ({
                   )}
 
                   {isOutForDelivery && (
+                    <div className="flex-1 flex space-x-2">
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => onUpdateStatus(order.id, OrderStatus.ARRIVED, 'Delivery partner reached customer address')}
+                        className="py-3 px-3 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-800 text-purple-200 text-xs font-bold flex items-center justify-center space-x-1"
+                      >
+                        <MapPin className="w-4 h-4 text-purple-400" />
+                        <span>{language === 'hi' ? 'पहुंचे' : 'Arrived'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleMarkDelivered(order.id)}
+                        className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-lg shadow-emerald-950"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>{language === 'hi' ? 'डिलीवर हो गया (Mark Delivered)' : 'Mark as Delivered'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {order.status === OrderStatus.ARRIVED && (
                     <button
                       type="button"
                       disabled={isUpdating}
@@ -215,7 +237,7 @@ export const DeliveryTrackingScreen: React.FC<DeliveryTrackingScreenProps> = ({
                       className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center justify-center space-x-1.5 shadow-lg shadow-emerald-950"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>{language === 'hi' ? 'डिलीवर हो गया (Mark Delivered)' : 'Mark as Delivered'}</span>
+                      <span>{language === 'hi' ? 'डिलीवरी पूर्ण करें (Complete Delivery)' : 'Complete Delivery'}</span>
                     </button>
                   )}
 

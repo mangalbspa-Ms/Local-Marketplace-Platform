@@ -1,7 +1,9 @@
 import React from 'react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { Shop } from '../../../types/market.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import {
   ShieldCheck,
   Star,
@@ -32,7 +34,7 @@ export const ShopOrderCard: React.FC<ShopOrderCardProps> = ({
   const isPickup = isShopPickupOnly || (order.fulfillmentType === FulfillmentType.STORE_PICKUP && !isShopDeliveryOnly);
   const isTerminal =
     order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
-  const totalPayable = order.financials?.customerTotal ?? 0;
+  const totalPayable = calculateOrderTotal(order);
   const orderNumberDisplay = order.orderNumber || `#ORD-${order.id.slice(-6).toUpperCase()}`;
 
   // Use shop metadata with sensible fallbacks
@@ -234,12 +236,12 @@ export const ShopOrderCard: React.FC<ShopOrderCardProps> = ({
       {/* 3. Bottom Row: Status Badge + Date & View Order Button */}
       <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${statusInfo.badgeBg}`}
-          >
-            <span>{statusInfo.icon}</span>
-            <span>{statusInfo.label}</span>
-          </span>
+          <OrderStatusBadge
+            status={order.status}
+            language={language}
+            variant="customer"
+            size="sm"
+          />
 
           <span className="text-[10px] text-slate-400 font-medium truncate hidden sm:inline">
             {orderNumberDisplay} • {formattedDateTime}

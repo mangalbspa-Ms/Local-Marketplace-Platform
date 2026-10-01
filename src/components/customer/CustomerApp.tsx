@@ -29,40 +29,55 @@ import { OrdersListScreen } from './orders/OrdersListScreen.tsx';
 import { LiveOrderTrackingModal } from './orders/LiveOrderTrackingModal.tsx';
 import { AddressSelectionModal } from './cart/AddressSelectionModal.tsx';
 import { NotificationsModal } from './common/NotificationsModal.tsx';
-import { VoiceAssistantModal } from './voice/VoiceAssistantModal.tsx';
 import { VoiceShoppingRequestModal } from './voice/VoiceShoppingRequestModal.tsx';
+import { VoiceAssistantModal } from './voice/VoiceAssistantModal.tsx';
 import { ShoppingRequestDetailModal } from './orders/ShoppingRequestDetailModal.tsx';
 import { CustomerProfileScreen } from './profile/CustomerProfileScreen.tsx';
+import { NearbyShopsScreen } from './NearbyShopsScreen.tsx';
 import { Shop } from '../../types/market.ts';
 import { Order } from '../../types/order.ts';
 import { ShoppingRequest } from '../../types/shoppingRequest.ts';
 import { customerApi } from '../../services/customerApi.ts';
 
 const CustomerMainContent: React.FC = () => {
+  const { shops } = useCustomerMarket();
   const [currentTab, setCurrentTab] = useState<CustomerTab>('home');
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [searchInitialQuery, setSearchInitialQuery] = useState<string>('');
+  const [searchAutoStartVoice, setSearchAutoStartVoice] = useState(false);
+  const [isViewingAllShops, setIsViewingAllShops] = useState(false);
 
   // Modals state
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isVoiceShoppingModalOpen, setIsVoiceShoppingModalOpen] = useState(false);
   const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<Order | null>(null);
   const [activeShoppingRequest, setActiveShoppingRequest] = useState<ShoppingRequest | null>(null);
 
   const handleSelectShop = (shop: Shop) => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     setSelectedShop(shop);
+    setIsViewingAllShops(false);
+    // When routing to a shop profile via voice search from Home, reset active tab to home
+    if (searchAutoStartVoice) {
+      setCurrentTab('home');
+      setSearchAutoStartVoice(false);
+    }
   };
 
-  const handleOpenSearch = (initialQuery?: string) => {
+  const handleOpenSearch = (initialQuery?: string, startVoice = false) => {
     setSearchInitialQuery(initialQuery || '');
+    setSearchAutoStartVoice(startVoice);
+    setIsViewingAllShops(false);
     setCurrentTab('search');
   };
 
   const handlePaymentSuccess = (confirmedOrder: Order) => {
     setIsPaymentOpen(false);
     setActiveTrackingOrder(confirmedOrder);
+    setIsViewingAllShops(false);
     setCurrentTab('orders');
   };
 
@@ -78,31 +93,43 @@ const CustomerMainContent: React.FC = () => {
           />
         )}
 
-        {/* Main Body Switcher */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Main Body Switcher - Single Native Vertical Scroll */}
+        <main className="flex-1">
           {selectedShop ? (
             <ShopStorefront
               shop={selectedShop}
               onBack={() => setSelectedShop(null)}
               onViewCart={() => {
                 setSelectedShop(null);
+                setIsViewingAllShops(false);
                 setCurrentTab('cart');
               }}
-              onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+              onOpenVoiceAssistant={() => setIsVoiceShoppingModalOpen(true)}
+            />
+          ) : isViewingAllShops && currentTab === 'home' ? (
+            <NearbyShopsScreen
+              onSelectShop={handleSelectShop}
+              onBack={() => setIsViewingAllShops(false)}
             />
           ) : currentTab === 'home' ? (
             <HomeScreen
               onSelectShop={handleSelectShop}
               onOpenSearch={handleOpenSearch}
+              onOpenAllNearbyShops={() => setIsViewingAllShops(true)}
               onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
               onOpenNotifications={() => setIsNotificationsOpen(true)}
-              onOpenProfile={() => setCurrentTab('profile')}
+              onOpenProfile={() => {
+                setIsViewingAllShops(false);
+                setCurrentTab('profile');
+              }}
               onOpenAddressSelection={() => setIsAddressModalOpen(true)}
             />
           ) : currentTab === 'search' ? (
             <SearchScreen
               initialQuery={searchInitialQuery}
+              autoStartVoice={searchAutoStartVoice}
               onSelectShop={handleSelectShop}
+              onBack={() => setCurrentTab('home')}
             />
           ) : currentTab === 'cart' ? (
             <CartScreen
@@ -138,12 +165,15 @@ const CustomerMainContent: React.FC = () => {
             currentTab={currentTab}
             onSelectTab={(tab) => {
               setSelectedShop(null);
+              setIsViewingAllShops(false);
               if (tab === 'voice') {
-                setIsVoiceAssistantOpen(true);
+                // Handled in CustomerBottomNav in-place
               } else {
                 setCurrentTab(tab);
               }
             }}
+            onSelectShop={handleSelectShop}
+            onOpenSearch={(query) => handleOpenSearch(query, false)}
             onOpenVoice={() => setIsVoiceAssistantOpen(true)}
           />
         )}
@@ -170,12 +200,12 @@ const CustomerMainContent: React.FC = () => {
           onClose={() => setIsNotificationsOpen(false)}
         />
 
-        {/* Voice Assistant Modal */}
-        {isVoiceAssistantOpen && (
+        {/* Voice Shopping Request Modal (दुकानदार के लिए सामान की पर्ची - Scoped to selected shop) */}
+        {isVoiceShoppingModalOpen && (
           <VoiceShoppingRequestModal
-            isOpen={isVoiceAssistantOpen}
-            targetShop={selectedShop || undefined}
-            onClose={() => setIsVoiceAssistantOpen(false)}
+            isOpen={isVoiceShoppingModalOpen}
+            targetShop={selectedShop || shops[0] || null}
+            onClose={() => setIsVoiceShoppingModalOpen(false)}
             onRequestSubmitted={(req) => {
               setActiveShoppingRequest(req);
               setCurrentTab('orders');
@@ -200,6 +230,13 @@ const CustomerMainContent: React.FC = () => {
           order={activeTrackingOrder}
           isOpen={!!activeTrackingOrder}
           onClose={() => setActiveTrackingOrder(null)}
+        />
+
+        {/* Voice Assistant Modal (Voice Search for shops and products) */}
+        <VoiceAssistantModal
+          isOpen={isVoiceAssistantOpen}
+          onClose={() => setIsVoiceAssistantOpen(false)}
+          onSelectShop={handleSelectShop}
         />
       </div>
     </div>

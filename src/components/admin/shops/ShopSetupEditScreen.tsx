@@ -3,7 +3,7 @@
  * 7 Dedicated Tabs: Profile, Location, Catalog, Inventory, Delivery & Pickup, Timings, Settings & Commission.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Shop, LocalMarket, ShopManagementMode } from '../../../types/market.ts';
 import { Product } from '../../../types/product.ts';
 import { adminApi } from '../../../services/adminApi.ts';
@@ -34,9 +34,22 @@ import {
   Eye,
   Crosshair,
   Sparkles,
+  Camera,
+  Image as ImageIcon,
+  ShieldCheck,
+  Building,
+  Navigation,
+  X,
+  Check,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { AddEditProductModal } from './modals/AddEditProductModal.tsx';
 import { MasterCatalogBulkAddModal } from './modals/MasterCatalogBulkAddModal.tsx';
+import { AdminGoogleMapLocationPickerModal } from './modals/AdminGoogleMapLocationPickerModal.tsx';
+import { PhotoDisplayControl } from '../../common/PhotoDisplayControl.tsx';
+import { PhotoManagerModal } from '../../common/PhotoManagerModal.tsx';
+import { PhotoApiService } from '../../../services/photoApi.ts';
+import { requestFreshDeviceLocation } from '../../../utils/deviceGeolocation.ts';
 
 interface ShopSetupEditScreenProps {
   shop: Shop;
@@ -73,13 +86,22 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
+  const [photoModalTarget, setPhotoModalTarget] = useState<'profile' | 'cover' | null>(null);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [profilePopKey, setProfilePopKey] = useState(0);
+  const [coverPopKey, setCoverPopKey] = useState(0);
+
+  // Direct file picker refs for Android gallery
+  const profileFileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form States for Profile
   const [shopName, setShopName] = useState(shop.name || '');
   const [sellerName, setSellerName] = useState((shop as any).sellerName || '');
   const [phone, setPhone] = useState(shop.phone || '');
   const [email, setEmail] = useState(shop.email || '');
-  const [photoUrl, setPhotoUrl] = useState(shop.photoUrl || '');
+  const [photoUrl, setPhotoUrl] = useState(shop.profilePhotoUrl || shop.photoUrl || '');
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState(shop.coverPhotoUrl || (shop as any).bannerUrl || '');
   const [category, setCategory] = useState(shop.category || 'Grocery & Kirana');
   const [description, setDescription] = useState(shop.description || '');
 
@@ -94,6 +116,8 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
   const [marketId, setMarketId] = useState(shop.marketId || '');
   const [lat, setLat] = useState<number | ''>(shop.coordinates?.lat ?? 26.8467);
   const [lng, setLng] = useState<number | ''>(shop.coordinates?.lng ?? 80.9462);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [mapLocationSource, setMapLocationSource] = useState<'google_map' | 'device_gps' | null>(null);
   const [deliveryRadiusKm, setDeliveryRadiusKm] = useState<number | ''>(
     shop.fulfillment?.maxDeliveryRadiusKm ?? (shop.fulfillment as any)?.deliveryRadiusKm ?? 5
   );
@@ -149,6 +173,10 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
+
+  // Product Delete Modal State
+  const [productToDelete, setProductToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
@@ -230,6 +258,88 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
     return { total, inStock, lowStock, outOfStock };
   }, [products]);
 
+  // Handle Direct Profile / Cover Photo Updates with Pop Animation & Gallery
+  const handlePhotoUpdate = async (
+    type: 'profile' | 'cover',
+    result: { action: 'set' | 'remove'; url?: string; imageData?: string }
+  ) => {
+    try {
+      const updated = await PhotoApiService.manageShopPhoto(
+        shop.id,
+        {
+          type,
+          action: result.action,
+          url: result.url,
+          imageData: result.imageData,
+        },
+        'admin'
+      );
+      setShop(updated);
+      if (type === 'profile') {
+        setPhotoUrl(updated.profilePhotoUrl || updated.photoUrl || '');
+        setProfilePopKey((k) => k + 1);
+      }
+      if (type === 'cover') {
+        setCoverPhotoUrl(updated.coverPhotoUrl || (updated as any).bannerUrl || '');
+        setCoverPopKey((k) => k + 1);
+      }
+      onShopUpdated(updated);
+      showToast(
+        `${type === 'profile' ? 'दुकान प्रोफ़ाइल फोटो' : 'दुकान कवर फोटो'} सफलतापूर्वक ${
+          result.action === 'remove' ? 'हटा दी गई' : 'अपडेट हो गई'
+        }!`
+      );
+    } catch (err: any) {
+      showToast('फोटो अपडेट करने में विफल: ' + err.message, 'error');
+      throw err;
+    }
+  };
+
+  // Direct Phone Gallery file selection & instant persistent save
+  const handleDirectGalleryUpload = async (
+    type: 'profile' | 'cover',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('कृपया केवल इमेज (JPG, PNG, WEBP) फ़ाइल चुनें', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('फ़ाइल का आकार 5MB से कम होना चाहिए', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      if (!dataUrl) return;
+
+      // Optimistic preview
+      if (type === 'profile') {
+        setPhotoUrl(dataUrl);
+        setProfilePopKey((k) => k + 1);
+      } else {
+        setCoverPhotoUrl(dataUrl);
+        setCoverPopKey((k) => k + 1);
+      }
+
+      showToast(`${type === 'profile' ? 'प्रोफ़ाइल' : 'कवर'} फोटो अपलोड व सेव हो रही है...`);
+
+      try {
+        await handlePhotoUpdate(type, { action: 'set', imageData: dataUrl });
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(file);
+    // Reset file input so selecting same file again fires event
+    e.target.value = '';
+  };
+
   // Save Shop Profile
   const handleSaveProfile = async () => {
     setIsSaving(true);
@@ -240,11 +350,53 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
         phone: phone.trim(),
         email: email.trim(),
         photoUrl: photoUrl.trim(),
+        profilePhotoUrl: photoUrl.trim(),
+        coverPhotoUrl: coverPhotoUrl.trim(),
         category: category.trim(),
         description: description.trim(),
       } as any);
       setShop(updated);
       onShopUpdated(updated);
+      showToast('दुकान की प्रोफ़ाइल सफलतापूर्वक अपडेट हो गई!');
+    } catch (err: any) {
+      console.error(err);
+      showToast('प्रोफ़ाइल अपडेट करने में विफल: ' + err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save Shop Profile from Design #5 Modal
+  const handleSaveProfileModal = async () => {
+    setIsSaving(true);
+    try {
+      const formattedAddress = [street.trim(), landmark.trim(), city.trim(), stateName.trim(), pincode.trim()]
+        .filter(Boolean)
+        .join(', ');
+
+      const updated = await adminApi.updateShopDetails(shop.id, {
+        name: shopName.trim(),
+        sellerName: sellerName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        photoUrl: photoUrl.trim(),
+        profilePhotoUrl: photoUrl.trim(),
+        coverPhotoUrl: coverPhotoUrl.trim(),
+        category: category.trim(),
+        description: description.trim(),
+        address: formattedAddress,
+        isActive,
+        isVerifiedByAdmin: isVerified,
+        operatingHours: {
+          ...shop.operatingHours,
+          openTime: openingTime,
+          closeTime: closingTime,
+        },
+      } as any);
+
+      setShop(updated);
+      onShopUpdated(updated);
+      setIsEditProfileModalOpen(false);
       showToast('दुकान की प्रोफ़ाइल सफलतापूर्वक अपडेट हो गई!');
     } catch (err: any) {
       console.error(err);
@@ -290,22 +442,52 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
     }
   };
 
-  // Auto-detect GPS coordinates
-  const handleDetectGPS = () => {
-    if (!navigator.geolocation) {
-      alert('ब्राउज़र में GPS उपलब्ध नहीं है');
-      return;
+  // Auto-detect GPS coordinates with fresh high-accuracy device GPS
+  const handleDetectGPS = async () => {
+    try {
+      showToast('सटीक GPS लोकेशन खोजी जा रही है...');
+      const res = await requestFreshDeviceLocation();
+      const freshLat = parseFloat(res.lat.toFixed(6));
+      const freshLng = parseFloat(res.lng.toFixed(6));
+      setLat(freshLat);
+      setLng(freshLng);
+      setMapLocationSource('device_gps');
+      showToast(`वर्तमान GPS प्राप्त हुआ! सटीकता: ±${Math.round(res.accuracy)}m (${res.source})`);
+    } catch (err: any) {
+      alert('GPS त्रुटि: ' + (err?.message || 'लोकेशन प्राप्त नहीं हो सकी'));
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLat(parseFloat(pos.coords.latitude.toFixed(6)));
-        setLng(parseFloat(pos.coords.longitude.toFixed(6)));
-        showToast('वर्तमान GPS अक्षांश व देशांतर प्राप्त हुए!');
-      },
-      (err) => {
-        alert('GPS त्रुटि: ' + err.message);
-      }
-    );
+  };
+
+  // Confirm and persist location chosen from Google Map
+  const handleConfirmMapLocation = async (coords: { lat: number; lng: number }, formattedAddress?: string) => {
+    setLat(coords.lat);
+    setLng(coords.lng);
+    setMapLocationSource('google_map');
+
+    try {
+      const formattedAddr = [street.trim(), landmark.trim(), city.trim(), stateName.trim(), pincode.trim()]
+        .filter(Boolean)
+        .join(', ') || formattedAddress;
+
+      const updated = await adminApi.updateShopDetails(shop.id, {
+        coordinates: {
+          lat: coords.lat,
+          lng: coords.lng,
+        },
+        address: formattedAddr || shop.address,
+        fulfillment: {
+          ...shop.fulfillment,
+          maxDeliveryRadiusKm: Number(deliveryRadiusKm),
+        },
+      } as any);
+
+      setShop(updated);
+      onShopUpdated(updated);
+      showToast('दुकान की Location सफलतापूर्वक सेव हो गई।');
+    } catch (err: any) {
+      console.error(err);
+      showToast('लोकेशन सुरक्षित करने में विफल: ' + err.message, 'error');
+    }
   };
 
   // Save Delivery & Pickup
@@ -391,6 +573,39 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
     }
   };
 
+  // Direct Admin Verification & Field Locking
+  const handleVerifyShopDirect = async () => {
+    try {
+      setIsSaving(true);
+      const updated = await adminApi.verifyShop(shop.id);
+      setShop(updated);
+      setIsVerified(true);
+      onShopUpdated(updated);
+      showToast('दुकान आधिकारिक रूप से सत्यापित एवं विवरण सुरक्षित (Locked) कर दिए गए!');
+    } catch (err: any) {
+      showToast('सत्यापन विफल: ' + err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectShopDirect = async () => {
+    const reason = window.prompt('सत्यापन अस्वीकार करने का कारण दर्ज करें:');
+    if (!reason?.trim()) return;
+    try {
+      setIsSaving(true);
+      const updated = await adminApi.rejectShop(shop.id, reason.trim());
+      setShop(updated);
+      setIsVerified(false);
+      onShopUpdated(updated);
+      showToast('दुकान सत्यापन अस्वीकृत किया गया');
+    } catch (err: any) {
+      showToast('त्रुटि: ' + err.message, 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Quick Stock / Availability Update
   const handleQuickStockUpdate = async (productId: string, stockDelta: number) => {
     const target = products.find((p) => p.id === productId);
@@ -424,17 +639,23 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
     }
   };
 
-  const handleDeleteProduct = async (productId: string, name: string) => {
-    if (!window.confirm(`क्या आप वाकई "${name}" को इस दुकान के कैटलॉग से हटाना चाहते हैं?`)) {
-      return;
-    }
+  const handleDeleteProduct = (productId: string, name: string) => {
+    setProductToDelete({ id: productId, name });
+  };
+
+  const handleConfirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
     try {
-      await adminApi.deleteProduct(productId);
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
-      showToast(`"${name}" कैटलॉग से हटा दिया गया`);
+      await adminApi.deleteProduct(productToDelete.id);
+      setProducts((prev) => prev.filter((p) => p.id !== productToDelete.id));
+      showToast(`"${productToDelete.name}" दुकान के कैटलॉग से हटा दिया गया`);
+      setProductToDelete(null);
     } catch (err: any) {
-      console.error(err);
-      showToast('हटाने में विफल: ' + err.message, 'error');
+      console.error('Failed to delete product from shop:', err);
+      showToast('हटाने में विफल: ' + (err?.message || 'अज्ञात त्रुटि'), 'error');
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -458,91 +679,342 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
         </div>
       )}
 
-      {/* Top Header Card */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
+      {/* ========================================================================= */}
+      {/* DESIGN #5: COMPACT MOBILE-FIRST SHOP/SELLER PROFILE & HEADER */}
+      {/* ========================================================================= */}
+      <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+        {/* 1. SHOP PROFILE HEADER: Compact horizontal profile header */}
+        <div className="p-3 sm:p-4 border-b border-slate-800/80 bg-slate-900/95 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            {/* Back Button */}
             <button
               type="button"
               onClick={onBack}
-              className="w-10 h-10 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition shrink-0 active:scale-95"
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition shrink-0 active:scale-95 cursor-pointer"
               title="वापस सभी दुकानें"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
 
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 overflow-hidden shrink-0 flex items-center justify-center">
-              {shop.photoUrl && shop.photoUrl.trim() !== '' ? (
-                <img src={shop.photoUrl} alt={shop.name} className="w-full h-full object-cover" />
-              ) : (
-                <Store className="w-6 h-6 text-indigo-400" />
-              )}
+            {/* Direct Android Phone Gallery File Inputs */}
+            <input
+              ref={profileFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleDirectGalleryUpload('profile', e)}
+            />
+            <input
+              ref={coverFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleDirectGalleryUpload('cover', e)}
+            />
+
+            {/* Shop Profile Photo / Logo (Small circular image, 60-75px, not hidden) */}
+            <div className="relative shrink-0 group">
+              <motion.div
+                key={profilePopKey}
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                onClick={() => setPhotoModalTarget('profile')}
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-indigo-500/60 overflow-hidden cursor-pointer shadow-md bg-slate-950 flex items-center justify-center relative active:scale-95 transition-transform"
+                title="फोटो बदलें"
+              >
+                {photoUrl || shop.profilePhotoUrl || shop.photoUrl ? (
+                  <img
+                    src={photoUrl || shop.profilePhotoUrl || shop.photoUrl}
+                    alt={shop.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Store className="w-7 h-7 text-indigo-400" />
+                )}
+
+                {/* Tap / Hover Overlay Badge */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                  <Camera className="w-4 h-4" />
+                </div>
+              </motion.div>
+
+              {/* Camera icon trigger badge */}
+              <button
+                type="button"
+                onClick={() => setPhotoModalTarget('profile')}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md border border-slate-900 text-xs transition active:scale-95 cursor-pointer"
+                title="फोटो बदलें (Photo Manager / Gallery)"
+              >
+                <Camera className="w-3 h-3" />
+              </button>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg sm:text-xl font-black text-white">{shop.name}</h1>
+            {/* Shop Name & Owner Name beside Profile Photo */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-sm sm:text-base font-black text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md">
+                  {shop.name || shopName}
+                </h1>
+
+                {/* Shop Active/Inactive Status */}
                 <span
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide border shrink-0 ${
                     shop.isActive
-                      ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
-                      : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
                   }`}
                 >
                   {shop.isActive ? 'सक्रिय (Active)' : 'निष्क्रिय (Inactive)'}
                 </span>
+
+                {/* Shop Verified Status */}
                 <span
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                  className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide border shrink-0 ${
                     shop.isVerifiedByAdmin
-                      ? 'bg-indigo-500/15 border border-indigo-500/30 text-indigo-400'
-                      : 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
+                      ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400'
+                      : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
                   }`}
                 >
-                  {shop.isVerifiedByAdmin ? 'सत्यापित (Verified)' : 'सत्यापन पेंडिंग'}
-                </span>
-                <span className="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold">
-                  {shop.managementMode || 'HYBRID'}
+                  {shop.isVerifiedByAdmin ? 'सत्यापित' : 'सत्यापन पेंडिंग'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 text-xs text-slate-400 mt-1 flex-wrap">
-                <span className="flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-slate-500" />
-                  <span>दुकानदार: <strong className="text-slate-200">{shop.sellerName || 'अज्ञात'}</strong></span>
-                </span>
-                {shop.phone && (
-                  <span className="flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{shop.phone}</span>
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  <span>{shop.address?.city || 'City'}, {shop.address?.pincode}</span>
-                </span>
+              {/* Seller / Owner Name below Shop Name */}
+              <div className="text-[11px] text-slate-300 font-medium flex items-center gap-1.5 mt-0.5 truncate">
+                <User className="w-3 h-3 text-indigo-400 shrink-0" />
+                <span>दुकानदार: <strong className="text-white font-bold">{shop.sellerName || sellerName || 'अज्ञात'}</strong></span>
+                <span className="text-slate-600">•</span>
+                <span className="text-slate-400">{shop.category || category}</span>
               </div>
             </div>
           </div>
 
-          {/* Header Quick Actions */}
-          <div className="flex items-center gap-2 self-end md:self-center">
+          {/* Header Actions: Refresh & Close */}
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={loadShopProducts}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              title="कैटलॉग रिफ्रेश करें"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingProducts ? 'animate-spin' : ''}`} />
-              <span>रिफ्रेश कैटलॉग</span>
+              <span className="hidden sm:inline">रिफ्रेश</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+              title="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Close</span>
             </button>
           </div>
         </div>
 
-        {/* 7 Tabs Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-5 mt-5 border-t border-slate-800/80 scrollbar-none">
+        {/* 2. COVER PHOTO: Wide and short cover banner directly below profile header */}
+        <div className="relative w-full h-24 sm:h-32 bg-slate-950 overflow-hidden border-b border-slate-800">
+          <motion.div
+            key={coverPopKey}
+            initial={{ scale: 0.98 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            className="w-full h-full relative group"
+          >
+            {coverPhotoUrl || shop.coverPhotoUrl || (shop as any).bannerUrl ? (
+              <img
+                src={coverPhotoUrl || shop.coverPhotoUrl || (shop as any).bannerUrl}
+                alt={`${shop.name} Cover`}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              /* Clean Default Cover Placeholder */
+              <div className="w-full h-full bg-gradient-to-r from-slate-950 via-indigo-950/40 to-slate-950 flex items-center justify-center relative">
+                <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-25" />
+                <div className="flex items-center gap-2 text-slate-500 text-xs font-bold relative z-10">
+                  <ImageIcon className="w-4 h-4 text-slate-400" />
+                  <span>डिफ़ॉल्ट दुकान कवर (Default Cover Banner)</span>
+                </div>
+              </div>
+            )}
+
+            {/* ONLY ONE Small Camera / "कवर बदलें" button inside Cover */}
+            <div className="absolute top-2.5 right-2.5 z-10">
+              <button
+                type="button"
+                onClick={() => setPhotoModalTarget('cover')}
+                className="px-2.5 py-1 rounded-full bg-black/80 hover:bg-black text-white text-[11px] font-bold border border-white/20 shadow-lg flex items-center gap-1 active:scale-95 transition backdrop-blur-sm cursor-pointer"
+                title="कवर बदलें"
+              >
+                <Camera className="w-3 h-3 text-indigo-300" />
+                <span>कवर बदलें</span>
+              </button>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* 3. SHOP INFORMATION: Ultra-compact rows with zero excessive height */}
+        <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-black text-white flex items-center gap-1.5">
+              <Store className="w-3.5 h-3.5 text-indigo-400" />
+              <span>दुकान विवरण (Shop Information)</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsEditProfileModalOpen(true)}
+              className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black flex items-center gap-1 shadow-md shadow-indigo-600/30 transition active:scale-95 cursor-pointer"
+            >
+              <Edit2 className="w-3 h-3" />
+              <span>विवरण बदलें</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 text-xs">
+            {/* 1. दुकान का नाम */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Store className="w-3.5 h-3.5 text-indigo-400" />
+                <span>दुकान का नाम</span>
+              </span>
+              <span className="text-[11px] font-black text-white truncate max-w-[55%] text-right">{shop.name || shopName}</span>
+            </div>
+
+            {/* 2. दुकानदार का नाम */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <User className="w-3.5 h-3.5 text-teal-400" />
+                <span>दुकानदार का नाम</span>
+              </span>
+              <span className="text-[11px] font-bold text-white truncate max-w-[55%] text-right">{shop.sellerName || sellerName || 'अज्ञात'}</span>
+            </div>
+
+            {/* 3. मोबाइल */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                <span>मोबाइल</span>
+              </span>
+              <span className="text-[11px] font-mono font-bold text-emerald-400 truncate max-w-[55%] text-right">{shop.phone || phone || 'उपलब्ध नहीं'}</span>
+            </div>
+
+            {/* 4. ईमेल */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Mail className="w-3.5 h-3.5 text-blue-400" />
+                <span>ईमेल</span>
+              </span>
+              <span className="text-[11px] text-slate-300 font-medium truncate max-w-[55%] text-right">{shop.sellerEmail || (shop as any).email || email || 'seller@apnidukan.local'}</span>
+            </div>
+
+            {/* 5. पूरा पता */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70 sm:col-span-2 lg:col-span-1">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <MapPin className="w-3.5 h-3.5 text-rose-400" />
+                <span>पूरा पता</span>
+              </span>
+              <span className="text-[11px] text-white font-medium truncate max-w-[55%] text-right">
+                {street ? `${street}, ` : ''}{shop.address?.city || city || 'जयपुर'}, {shop.address?.pincode || pincode || '302001'}
+              </span>
+            </div>
+
+            {/* 6. शहर */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Building className="w-3.5 h-3.5 text-purple-400" />
+                <span>शहर</span>
+              </span>
+              <span className="text-[11px] font-bold text-white truncate max-w-[55%] text-right">{shop.address?.city || city || 'जयपुर'}</span>
+            </div>
+
+            {/* 7. पिनकोड */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                <span>पिनकोड</span>
+              </span>
+              <span className="text-[11px] font-mono font-bold text-white truncate max-w-[55%] text-right">{shop.address?.pincode || pincode || '302001'}</span>
+            </div>
+
+            {/* 8. GPS/location */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+                <span>GPS / Location</span>
+              </span>
+              <span className="text-[10px] font-mono text-cyan-300 truncate max-w-[55%] text-right">
+                {shop.address?.location ? `${shop.address.location.lat.toFixed(4)}, ${shop.address.location.lng.toFixed(4)}` : `${typeof lat === 'number' ? lat.toFixed(4) : '26.9124'}, ${typeof lng === 'number' ? lng.toFixed(4) : '75.7873'}`}
+              </span>
+            </div>
+
+            {/* 9. डिलीवरी क्षेत्र */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>डिलीवरी दायरा</span>
+              </span>
+              <span className="text-[11px] font-bold text-white truncate max-w-[55%] text-right">
+                {deliveryRadiusKm || shop.fulfillment?.maxDeliveryRadiusKm || 5} km ({deliveryEnabled ? 'चालू' : 'पिकअप केवल'})
+              </span>
+            </div>
+
+            {/* 10. दुकान खुलने का समय */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>खुलने का समय</span>
+              </span>
+              <span className="text-[11px] font-bold text-emerald-400 truncate max-w-[55%] text-right">{openingTime || shop.operatingHours?.openTime || '08:00 AM'}</span>
+            </div>
+
+            {/* 11. दुकान बंद होने का समय */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <Clock className="w-3.5 h-3.5 text-rose-400" />
+                <span>बंद होने का समय</span>
+              </span>
+              <span className="text-[11px] font-bold text-rose-400 truncate max-w-[55%] text-right">{closingTime || shop.operatingHours?.closeTime || '09:00 PM'}</span>
+            </div>
+
+            {/* 12. दुकान की स्थिति */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>दुकान स्थिति</span>
+              </span>
+              <span className="text-[11px] font-bold mt-0.5 flex items-center gap-1.5 truncate">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${shop.isActive ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                <span className={shop.isActive ? 'text-emerald-400' : 'text-rose-400'}>{shop.isActive ? 'सक्रिय' : 'निष्क्रिय'}</span>
+                <span className="text-slate-600">•</span>
+                <span className={isOpenNow ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                  {isOpenNow ? 'खुली है' : 'बंद'}
+                </span>
+              </span>
+            </div>
+
+            {/* 13. Verification status */}
+            <div className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-slate-950/60 border border-slate-800/70">
+              <span className="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5 shrink-0">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>सत्यापन स्थिति</span>
+              </span>
+              <span className={`text-[11px] font-black truncate ${shop.isVerifiedByAdmin ? 'text-indigo-400' : 'text-amber-400'}`}>
+                {shop.isVerifiedByAdmin ? '✓ सत्यापित (Verified)' : 'सत्यापन पेंडिंग'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. TABS BAR - Compact navigation keeping Catalog immediately below */}
+        <div className="flex items-center gap-1.5 overflow-x-auto px-3 sm:px-4 py-2 bg-slate-950/90 border-t border-slate-800 scrollbar-none touch-pan-x">
           {[
-            { key: 'catalog', label: 'कैटलॉग (Catalog)', icon: Package, badge: products.length },
-            { key: 'inventory', label: 'इन्वेंटरी (Inventory)', icon: Boxes, badge: inventoryStats.lowStock > 0 ? `${inventoryStats.lowStock} कम` : undefined, badgeColor: 'bg-amber-500 text-slate-950' },
-            { key: 'profile', label: 'प्रोफ़ाइल (Profile)', icon: Store },
+            { key: 'catalog', label: 'दुकान कैटलॉग (Products)', icon: Package, badge: products.length },
+            { key: 'inventory', label: 'इन्वेंटरी (Stock)', icon: Boxes, badge: inventoryStats.lowStock > 0 ? `${inventoryStats.lowStock} कम` : undefined, badgeColor: 'bg-amber-500 text-slate-950' },
+            { key: 'profile', label: 'प्रोफ़ाइल विवरण (Profile)', icon: Store },
             { key: 'location', label: 'स्थान (Location)', icon: MapPin },
             { key: 'delivery', label: 'डिलीवरी व पिकअप', icon: Truck },
             { key: 'timings', label: 'समय (Timings)', icon: Clock },
@@ -555,13 +1027,13 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key as ShopTabKey)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition shrink-0 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition shrink-0 ${
                   isActiveTab
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'bg-slate-950/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800/60'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && (
                   <span
@@ -663,7 +1135,7 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
               {filteredProducts.map((p) => {
                 const stock = p.currentStockInBaseUnits ?? 0;
                 const threshold = p.lowStockThresholdInBaseUnits ?? 5;
@@ -673,26 +1145,27 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
                 return (
                   <div
                     key={p.id}
-                    className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition flex flex-col justify-between gap-3 group"
+                    className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition flex items-center justify-between gap-2.5 group"
                   >
-                    {/* Top row: Thumbnail + Details */}
-                    <div className="flex items-start gap-3">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0 relative">
+                    {/* Left: Product Image Thumbnail & Info */}
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shrink-0 relative">
                         <img
                           src={(p.imageUrl && p.imageUrl.trim() !== '') ? p.imageUrl : 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&auto=format&fit=crop&q=60'}
                           alt={p.name}
                           className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
                         />
                         {isOutOfStock && (
-                          <div className="absolute inset-0 bg-black/75 flex items-center justify-center text-[9px] font-black text-rose-400 uppercase">
-                            Out of Stock
+                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-[8px] font-black text-rose-400 uppercase">
+                            Out
                           </div>
                         )}
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="text-xs font-black text-white truncate">{p.name}</h4>
+                          <h4 className="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs">{p.name}</h4>
                           {p.brand && (
                             <span className="px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-400 text-[9px] font-bold">
                               {p.brand}
@@ -700,92 +1173,58 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
                           )}
                         </div>
                         {p.nameHindi && (
-                          <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                          <p className="text-[10px] text-slate-400 font-medium truncate">
                             {p.nameHindi}
                           </p>
                         )}
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          {p.category} • Base Unit: <strong className="text-slate-300">{p.baseUnit || p.fractionalConfig?.baseUnit || 'unit'}</strong>
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] flex-wrap">
+                          <span className="font-black text-emerald-400">
+                            ₹{p.basePricePerUnit || p.fractionalConfig?.basePrice || 0}
+                            <span className="text-[10px] text-slate-400 font-normal">/{p.baseUnit || p.fractionalConfig?.baseUnit || 'unit'}</span>
+                          </span>
+                          <span className="text-slate-600">•</span>
+                          <span className={`text-[10px] font-bold ${isOutOfStock ? 'text-rose-400' : isLowStock ? 'text-amber-400' : 'text-slate-300'}`}>
+                            स्टॉक: {stock} {p.baseUnit || 'unit'}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Middle: Price, Stock & Availability */}
-                    <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center justify-between gap-2">
-                      <div>
-                        <div className="text-[10px] text-slate-400">मूल्य (Price)</div>
-                        <div className="text-xs font-black text-emerald-400">
-                          ₹{p.basePricePerUnit || p.fractionalConfig?.basePrice || 0}
-                          <span className="text-[10px] text-slate-400">/{p.baseUnit || p.fractionalConfig?.baseUnit || 'unit'}</span>
-                        </div>
-                      </div>
+                    {/* Right: Availability Toggle & Action Buttons */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleProductAvailability(p.id, p.isAvailable !== false)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase transition cursor-pointer ${
+                          p.isAvailable !== false
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                        }`}
+                        title="उपलब्धता बदलें"
+                      >
+                        {p.isAvailable !== false ? 'In Stock' : 'Out'}
+                      </button>
 
-                      <div>
-                        <div className="text-[10px] text-slate-400">स्टॉक (Stock)</div>
-                        <div className={`text-xs font-black ${isOutOfStock ? 'text-rose-400' : isLowStock ? 'text-amber-400' : 'text-slate-200'}`}>
-                          {stock} {p.baseUnit || 'unit'}
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingProduct(p);
+                          setIsAddEditModalOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                        title="संपादित करें (Edit)"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
 
-                      <div className="flex flex-col items-end">
-                        <div className="text-[10px] text-slate-400">उपलब्धता</div>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleProductAvailability(p.id, p.isAvailable !== false)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-black uppercase transition ${
-                            p.isAvailable !== false
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          }`}
-                        >
-                          {p.isAvailable !== false ? 'In Stock' : 'Out'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Bottom: Quick stock adjust (+10, -5) + Edit/Delete */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-slate-500 font-bold">त्वरित स्टॉक:</span>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickStockUpdate(p.id, 10)}
-                          className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black transition active:scale-95"
-                          title="+10 स्टॉक बढ़ाएं"
-                        >
-                          +10
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleQuickStockUpdate(p.id, -5)}
-                          className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black transition active:scale-95"
-                          title="-5 स्टॉक घटाएं"
-                        >
-                          -5
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingProduct(p);
-                            setIsAddEditModalOpen(true);
-                          }}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
-                          title="संपादित करें (Edit)"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteProduct(p.id, p.name)}
-                          className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 transition"
-                          title="हटाएं (Delete)"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProduct(p.id, p.name)}
+                        className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-300 transition cursor-pointer"
+                        title="हटाएं (Delete)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -961,18 +1400,76 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                दुकान का फोटो / Logo URL
-              </label>
-              <input
-                type="url"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:border-indigo-500 outline-none"
-              />
+          {/* ========================================================================= */}
+          {/* PHOTO MANAGEMENT (Profile Photo & Cover Photo) - Requirement 1, 2, 6, 10 */}
+          {/* ========================================================================= */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+              <div>
+                <h4 className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>दुकान की तस्वीरें (Profile & Cover Photos Management)</span>
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Admin किसी भी दुकान की Profile Photo और Cover Photo को देख सकता है, फोन Gallery से बदल सकता है और हटा सकता है
+                </p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Profile Photo Control */}
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between">
+                <PhotoDisplayControl
+                  type="profile"
+                  photoUrl={photoUrl || shop.profilePhotoUrl || shop.photoUrl}
+                  title="दुकान प्रोफ़ाइल फोटो (Shop Profile Photo)"
+                  subtitle="लोगो या दुकान का मुख्य पहचान चिह्न (टैप करें या बदलें)"
+                  targetName={shop.name}
+                  roleLabel="Admin Control"
+                  canEdit={true}
+                  onUpdatePhoto={(res) => handlePhotoUpdate('profile', res)}
+                />
+                <div className="mt-3 pt-3 border-t border-slate-800/80">
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    सीधे URL से प्रोफ़ाइल फोटो लिंक करें:
+                  </label>
+                  <input
+                    type="url"
+                    value={photoUrl}
+                    onChange={(e) => setPhotoUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Cover Photo Control */}
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between">
+                <PhotoDisplayControl
+                  type="cover"
+                  photoUrl={coverPhotoUrl || shop.coverPhotoUrl || (shop as any).bannerUrl}
+                  title="दुकान कवर फोटो (Shop Cover Photo / Banner)"
+                  subtitle="दुकान के शीर्ष पर दिखने वाला लैंडस्केप बैनर"
+                  targetName={shop.name}
+                  roleLabel="Admin Control"
+                  canEdit={true}
+                  onUpdatePhoto={(res) => handlePhotoUpdate('cover', res)}
+                />
+                <div className="mt-3 pt-3 border-t border-slate-800/80">
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    सीधे URL से कवर फोटो लिंक करें:
+                  </label>
+                  <input
+                    type="url"
+                    value={coverPhotoUrl}
+                    onChange={(e) => setCoverPhotoUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
           </div>
 
           <div>
@@ -1099,20 +1596,39 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
 
           {/* Coordinates */}
           <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div className="text-xs font-bold text-white flex items-center gap-2">
                 <Crosshair className="w-4 h-4 text-indigo-400" />
                 <span>GPS निर्देशांक (Latitude & Longitude)</span>
               </div>
-              <button
-                type="button"
-                onClick={handleDetectGPS}
-                className="px-3 py-1 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 text-xs font-bold transition flex items-center gap-1.5"
-              >
-                <Crosshair className="w-3.5 h-3.5" />
-                <span>वर्तमान लोकेशन प्राप्त करें</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsMapModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black shadow-md shadow-indigo-600/30 transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>📍 Google Map से Location सेट करें</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDetectGPS}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/25 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                  <span>वर्तमान लोकेशन प्राप्त करें</span>
+                </button>
+              </div>
             </div>
+
+            {mapLocationSource && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  {mapLocationSource === 'google_map' ? '✓ Google Map से सटीक लोकेशन चुनी गई' : '✓ डिवाइस GPS से सटीक लोकेशन प्राप्त हुई'} ({Number(lat).toFixed(5)}, {Number(lng).toFixed(5)})
+                </span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -1448,6 +1964,67 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
                 <span className="w-5 h-5 rounded-full bg-white shadow-md block" />
               </button>
             </div>
+
+            {/* Formal Verification Actions Banner */}
+            <div className="sm:col-span-2 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className={`w-4 h-4 ${shop.verificationStatus === 'VERIFIED' ? 'text-emerald-400' : 'text-amber-400'}`} />
+                  <span className="text-xs font-black text-white">
+                    सत्यापन स्थिति (Official Verification Governance):
+                  </span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    shop.verificationStatus === 'VERIFIED'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : shop.verificationStatus === 'REJECTED'
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  }`}>
+                    {shop.verificationStatus || (shop.isVerifiedByAdmin ? 'VERIFIED' : 'PENDING')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {shop.verificationStatus === 'VERIFIED'
+                    ? 'दुकान सत्यापित है। नाम, श्रेणी, पता, जीपीएस व यूपीआई लॉक हैं। केवल एडमिन अनुमति पर ही बदले जा सकते हैं।'
+                    : 'सत्यापित करने पर विक्रेता के संवेदनशील विवरण लॉक हो जाएंगे और ग्राहक बाज़ार में विश्वास बैज दिखेगा।'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {shop.verificationStatus !== 'VERIFIED' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleVerifyShopDirect}
+                      disabled={isSaving}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-emerald-900/30 transition active:scale-95 disabled:opacity-50"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>स्वीकृत व लॉक करें</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRejectShopDirect}
+                      disabled={isSaving}
+                      className="px-3.5 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      <span>अस्वीकार</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRejectShopDirect}
+                    disabled={isSaving}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/40 border border-slate-700 hover:border-rose-500/40 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>सत्यापन रिवोक / अस्वीकार करें</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1486,6 +2063,302 @@ export const ShopSetupEditScreen: React.FC<ShopSetupEditScreenProps> = ({
           loadShopProducts();
           showToast(`कैटलॉग में नए प्रोडक्ट्स सफलतापूर्वक जुड़ गए!`);
         }}
+      />
+
+      {/* Photo Manager Modal for Profile / Cover Photo (Design #5 Action Buttons) */}
+      {photoModalTarget && (
+        <PhotoManagerModal
+          isOpen={true}
+          onClose={() => setPhotoModalTarget(null)}
+          type={photoModalTarget}
+          currentPhotoUrl={
+            photoModalTarget === 'profile'
+              ? photoUrl || shop.profilePhotoUrl || shop.photoUrl
+              : coverPhotoUrl || shop.coverPhotoUrl || (shop as any).bannerUrl
+          }
+          targetName={shop.name}
+          roleLabel="Admin Control"
+          onConfirm={async (res) => {
+            await handlePhotoUpdate(photoModalTarget, res);
+            setPhotoModalTarget(null);
+          }}
+          onSave={async (res) => {
+            await handlePhotoUpdate(photoModalTarget, res);
+            setPhotoModalTarget(null);
+          }}
+        />
+      )}
+
+      {/* Edit Profile Modal (Design #5 Action Button: प्रोफाइल संपादित करें) */}
+      {isEditProfileModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">दुकान प्रोफाइल संपादित करें</h3>
+                  <p className="text-[11px] text-slate-400">दुकान व दुकानदार की सभी मुख्य जानकारी अपडेट करें</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form Scrollable Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">दुकान का नाम *</label>
+                  <input
+                    type="text"
+                    value={shopName}
+                    onChange={(e) => setShopName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="दुकान का नाम"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">दुकानदार का नाम *</label>
+                  <input
+                    type="text"
+                    value={sellerName}
+                    onChange={(e) => setSellerName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="दुकानदार का नाम"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">मोबाइल नंबर *</label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="10 अंकों का मोबाइल"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">ईमेल (Email)</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="seller@market.in"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">श्रेणी (Category)</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                  >
+                    <option value="Grocery & Kirana">किराना व जनरल स्टोर (Grocery & Kirana)</option>
+                    <option value="Fruits & Vegetables">फल व सब्ज़ियां (Fruits & Veggies)</option>
+                    <option value="Dairy & Bakery">डेयरी व बेकरी (Dairy & Bakery)</option>
+                    <option value="Spices & Masala">मसाला भंडार (Spices & Masala)</option>
+                    <option value="Sweets & Snacks">मिठाई व नमकीन (Sweets & Snacks)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">सड़क / मोहल्ला (Street / Area)</label>
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="गली / बाज़ार का नाम"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">शहर (City)</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="शहर"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">पिनकोड (Pincode)</label>
+                  <input
+                    type="text"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                    placeholder="6 अंकों का पिनकोड"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">खुलने का समय (Opening Time)</label>
+                  <input
+                    type="time"
+                    value={openingTime}
+                    onChange={(e) => setOpeningTime(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">बंद होने का समय (Closing Time)</label>
+                  <input
+                    type="time"
+                    value={closingTime}
+                    onChange={(e) => setClosingTime(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">दुकान का विवरण (Description)</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-medium focus:border-indigo-500 outline-none resize-none"
+                  placeholder="दुकान के बारे में संक्षिप्त जानकारी..."
+                />
+              </div>
+
+              {/* Status Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-white">दुकान स्थिति (Active)</div>
+                    <div className="text-[10px] text-slate-400">दुकान बाज़ार में चालू या बंद</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsActive(!isActive)}
+                    className={`w-11 h-6 rounded-full transition p-0.5 flex items-center ${
+                      isActive ? 'bg-emerald-600 justify-end' : 'bg-slate-700 justify-start'
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white shadow-md block" />
+                  </button>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-white">सत्यापन स्थिति (Verified)</div>
+                    <div className="text-[10px] text-slate-400">एडमिन द्वारा अनुमोदित दुकान</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsVerified(!isVerified)}
+                    className={`w-11 h-6 rounded-full transition p-0.5 flex items-center ${
+                      isVerified ? 'bg-indigo-600 justify-end' : 'bg-slate-700 justify-start'
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white shadow-md block" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsEditProfileModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition active:scale-95"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProfileModal}
+                disabled={isSaving}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-indigo-600/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSaving ? 'सेव हो रहा है...' : 'प्रोफाइल सुरक्षित करें'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Product Delete Confirmation Dialog */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-5 text-center flex flex-col items-center">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mb-3">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            
+            <h3 className="text-base font-bold text-white mb-1.5">
+              क्या आप इस सामान को हटाना चाहते हैं?
+            </h3>
+            
+            <p className="text-xs text-slate-300 mb-4">
+              क्या आप वाकई <strong className="text-white">"{productToDelete.name}"</strong> को इस दुकान के कैटलॉग से हटाना चाहते हैं?
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 w-full">
+              <button
+                type="button"
+                onClick={() => setProductToDelete(null)}
+                disabled={isDeletingProduct}
+                className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer disabled:opacity-50"
+              >
+                रद्द करें
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteProduct}
+                disabled={isDeletingProduct}
+                className="w-full py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingProduct ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>हटा रहे हैं...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>हटाएँ</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Maps Location Picker Modal for Admin */}
+      <AdminGoogleMapLocationPickerModal
+        isOpen={isMapModalOpen}
+        shopName={shop.name}
+        initialCoordinates={
+          lat !== '' && lng !== ''
+            ? { lat: Number(lat), lng: Number(lng) }
+            : shop.coordinates
+        }
+        initialAddressHint={`${street} ${city} ${stateName}`.trim()}
+        onClose={() => setIsMapModalOpen(false)}
+        onConfirmLocation={handleConfirmMapLocation}
       />
     </div>
   );

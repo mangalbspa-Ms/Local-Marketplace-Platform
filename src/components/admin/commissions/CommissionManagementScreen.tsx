@@ -74,40 +74,83 @@ export const CommissionManagementScreen: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Percent className="w-5 h-5 text-indigo-400" />
-            <span>Commission Engine & Fee Structures</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Define platform take-rates, merchant settlement cycles, and custom shop rate overrides.
-          </p>
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <Percent className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+              <span>Commission Engine & Fees</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                {defaultRate}% Baseline
+              </span>
+            </h2>
+            <p className="text-[11px] text-slate-400">
+              Platform take-rates, merchant settlement cycles, and shop fee structures
+            </p>
+          </div>
         </div>
 
         {saveSuccess && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-700 text-emerald-300 text-xs font-bold animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Configuration Updated Successfully</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-700 text-emerald-300 text-[11px] font-bold animate-in fade-in self-start sm:self-auto">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Policy Saved</span>
           </div>
         )}
       </div>
 
-      {/* Global Config Form & Formula Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Global Commission Setting Form */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-5">
-          <h3 className="text-base font-black text-white flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>Platform Commission Policy</span>
-          </h3>
+      {/* 3 Compact KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Platform Take-Rate</p>
+            <h3 className="text-lg font-black text-indigo-400 mt-0.5">{defaultRate}%</h3>
+            <p className="text-[10px] text-slate-500">Order gross deduction</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <Percent className="w-4 h-4" />
+          </div>
+        </div>
 
-          <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Order Min / Max Cap</p>
+            <h3 className="text-lg font-black text-teal-400 mt-0.5">₹{minCap} – ₹{maxCap}</h3>
+            <p className="text-[10px] text-teal-400/70">Per order threshold</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400 flex items-center justify-center shrink-0">
+            <IndianRupee className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Settlement Recurrence</p>
+            <h3 className="text-lg font-black text-amber-400 mt-0.5">{settlementCycleDays} Days</h3>
+            <p className="text-[10px] text-amber-400/70">Payout cycle frequency</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+            <Zap className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Global Config Form & Formula Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Global Commission Setting Form */}
+        <div className="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-3.5">
+          <div className="flex items-center gap-2 border-b border-slate-800/80 pb-2.5">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-black text-white">Platform Commission Policy</h3>
+          </div>
+
+          <form onSubmit={handleSaveConfig} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">
                   Default Platform Commission Rate (%)
                 </label>
                 <div className="relative">
@@ -119,17 +162,17 @@ export const CommissionManagementScreen: React.FC = () => {
                     required
                     value={defaultRate}
                     onChange={(e) => setDefaultRate(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-base font-black outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-sm font-black outline-none focus:border-indigo-500"
                   />
-                  <span className="absolute right-4 top-3.5 text-slate-400 font-bold">%</span>
+                  <span className="absolute right-3 top-2 text-slate-400 font-bold text-xs">%</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Baseline platform commission deducted automatically from merchant order gross.
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Deducted automatically from merchant order gross.
                 </p>
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">
                   Settlement Cycle (Days)
                 </label>
                 <div className="relative">
@@ -140,20 +183,20 @@ export const CommissionManagementScreen: React.FC = () => {
                     required
                     value={settlementCycleDays}
                     onChange={(e) => setSettlementCycleDays(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-base font-black outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-sm font-black outline-none focus:border-indigo-500"
                   />
-                  <span className="absolute right-4 top-3.5 text-slate-400 font-bold">Days</span>
+                  <span className="absolute right-3 top-2 text-slate-400 font-bold text-xs">Days</span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Payout recurrence for generating merchant settlement balance reports.
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Payout recurrence for generating settlement balance reports.
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">
-                  Minimum Commission Cap per Order (₹)
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">
+                  Min Commission Cap per Order (₹)
                 </label>
                 <input
                   type="number"
@@ -162,13 +205,13 @@ export const CommissionManagementScreen: React.FC = () => {
                   required
                   value={minCap}
                   onChange={(e) => setMinCap(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-bold outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-indigo-500 text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 font-bold mb-1.5">
-                  Maximum Commission Cap per Order (₹)
+                <label className="block text-[11px] text-slate-400 font-bold mb-1">
+                  Max Commission Cap per Order (₹)
                 </label>
                 <input
                   type="number"
@@ -177,18 +220,18 @@ export const CommissionManagementScreen: React.FC = () => {
                   required
                   value={maxCap}
                   onChange={(e) => setMaxCap(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-bold outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-indigo-500 text-xs"
                 />
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex justify-end">
+            <div className="pt-2.5 border-t border-slate-800 flex justify-end">
               <button
                 type="submit"
                 disabled={isSaving}
-                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition"
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition"
               >
-                <Save className="w-4 h-4" />
+                <Save className="w-3.5 h-3.5" />
                 <span>{isSaving ? 'Saving Policy...' : 'Save Global Policy'}</span>
               </button>
             </div>
@@ -196,67 +239,67 @@ export const CommissionManagementScreen: React.FC = () => {
         </div>
 
         {/* Calculation Logic Info */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4 flex flex-col justify-between">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-3 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-black text-white flex items-center gap-2">
+            <div className="flex items-center gap-2 border-b border-slate-800/80 pb-2.5">
               <Info className="w-4 h-4 text-indigo-400" />
-              <span>Financial Rules Enforcement</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              The platform executes mathematical revenue separation at the moment of order confirmation.
+              <h3 className="text-xs font-black text-white">Financial Enforcement</h3>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+              Mathematical revenue separation executes automatically upon order confirmation.
             </p>
 
-            <div className="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-              <div className="text-[10px] font-mono text-slate-400 uppercase">Settlement Formula:</div>
-              <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 font-mono text-emerald-400 text-[11px] leading-relaxed">
-                SellerNetPayable = ItemSubtotal - (ItemSubtotal × CommissionRate)
+            <div className="mt-2.5 p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5 text-xs">
+              <div className="text-[9px] font-mono text-slate-400 uppercase">Settlement Formula:</div>
+              <div className="p-2 rounded-md bg-slate-900 border border-slate-800 font-mono text-emerald-400 text-[10px] leading-relaxed">
+                NetPayable = Subtotal - (Subtotal × Rate)
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Platform fees and delivery charges are processed independently to ensure zero merchant balance distortion.
+              <p className="text-[10px] text-slate-500 mt-1">
+                Platform fees and delivery are processed independently to ensure zero merchant distortion.
               </p>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-300">
-            <span className="font-bold">Shop-Specific Overrides:</span> To assign a special negotiated rate to an individual shop, navigate to the <span className="font-bold text-white">Shops & Approvals</span> tab.
+          <div className="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-[11px] text-indigo-300">
+            <span className="font-bold">Shop Overrides:</span> To assign a custom negotiated rate, open the <span className="font-bold text-white">Shops & Approvals</span> tab.
           </div>
         </div>
       </div>
 
       {/* Shop Specific Commission Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-black text-white flex items-center gap-2">
+      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+          <div className="flex items-center gap-2">
             <Store className="w-4 h-4 text-indigo-400" />
-            <span>Active Merchant Commission Rates</span>
-          </h3>
-          <span className="text-xs text-slate-400">Baseline default: {defaultRate}%</span>
+            <h3 className="text-xs font-black text-white">Active Merchant Commission Rates</h3>
+          </div>
+          <span className="text-[11px] text-slate-400">Baseline default: <span className="text-indigo-400 font-bold">{defaultRate}%</span></span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-800 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="pb-3">Shop & Mandi</th>
-                <th className="pb-3">Merchant Name</th>
-                <th className="pb-3 text-center">Category</th>
-                <th className="pb-3 text-right">Commission Rate</th>
+                <th className="pb-2">Shop & Mandi</th>
+                <th className="pb-2">Merchant Name</th>
+                <th className="pb-2 text-center">Category</th>
+                <th className="pb-2 text-right">Commission Rate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {shops.map((shop) => (
                 <tr key={shop.id} className="hover:bg-slate-800/30 transition">
-                  <td className="py-3 font-bold text-white">
-                    {shop.name}
+                  <td className="py-2.5 font-bold text-white">
+                    <span className="text-xs">{shop.name}</span>
                     <div className="text-[10px] text-slate-400 font-normal">{shop.marketName}</div>
                   </td>
-                  <td className="py-3 text-slate-300">{shop.sellerName}</td>
-                  <td className="py-3 text-center">
-                    <span className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold">
+                  <td className="py-2.5 text-slate-300 text-xs">{shop.sellerName}</td>
+                  <td className="py-2.5 text-center">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-bold">
                       {shop.category}
                     </span>
                   </td>
-                  <td className="py-3 text-right font-black font-mono text-indigo-400 text-sm">
+                  <td className="py-2.5 text-right font-black font-mono text-indigo-400 text-xs">
                     {shop.effectiveCommissionPercentage}%
                   </td>
                 </tr>

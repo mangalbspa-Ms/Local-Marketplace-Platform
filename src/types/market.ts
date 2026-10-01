@@ -65,6 +65,85 @@ export interface ShopFulfillmentSettings {
   adminOverrideActive?: boolean;
 }
 
+export type ShopVerificationStatus =
+  | 'PENDING_VERIFICATION'
+  | 'VERIFIED'
+  | 'CHANGE_REQUEST_PENDING'
+  | 'REJECTED';
+
+export type LocationSource = 'gps' | 'pin_adjusted' | 'manual';
+
+export interface PostalAddressMetadata {
+  pincode?: string;
+  state?: string;
+  district?: string;
+  tehsil?: string;
+  postOffice?: string;
+  locality?: string;
+}
+
+export interface ShopLocationMetadata {
+  coordinates: MarketCoordinates;
+  accuracy?: number; // In meters, e.g. 12.4
+  locationSource?: LocationSource;
+  detectedAt?: string;
+  notes?: string;
+}
+
+export interface ShopChangeRequest {
+  id: string;
+  shopId: string;
+  sellerId: string;
+  sellerName?: string;
+  shopName?: string;
+  requestedAt: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason: string;
+  requestedChanges: {
+    name?: string;
+    category?: string;
+    description?: string;
+    phone?: string;
+    email?: string;
+    whatsapp?: string;
+    address?: string;
+    pincode?: string;
+    postalData?: PostalAddressMetadata;
+    coordinates?: MarketCoordinates;
+    locationAccuracy?: number;
+    locationSource?: LocationSource;
+    photoUrl?: string;
+    profilePhotoUrl?: string;
+    coverPhotoUrl?: string;
+    bannerUrl?: string;
+    upiPayoutId?: string;
+    paymentName?: string;
+  };
+  currentSnapshot?: {
+    name?: string;
+    category?: string;
+    description?: string;
+    phone?: string;
+    email?: string;
+    whatsapp?: string;
+    address?: string;
+    pincode?: string;
+    postalData?: PostalAddressMetadata;
+    coordinates?: MarketCoordinates;
+    locationAccuracy?: number;
+    locationSource?: LocationSource;
+    photoUrl?: string;
+    profilePhotoUrl?: string;
+    coverPhotoUrl?: string;
+    upiPayoutId?: string;
+    paymentName?: string;
+  };
+  reviewedAt?: string;
+  reviewedBy?: string;
+  rejectionReason?: string;
+  adminNotes?: string;
+}
+
 export interface Shop {
   id: string;
   sellerId: string; // Owner User ID
@@ -77,21 +156,38 @@ export interface Shop {
   landmark?: string;
   gstin?: string;
   upiPayoutId?: string;
+  paymentName?: string;
+  whatsapp?: string;
   managementMode?: ShopManagementMode;
   onboardedByAdminId?: string;
   bannerUrl?: string;
   bannerImageUrl?: string;
+  coverPhotoUrl?: string; // Dedicated Shop Cover Photo
+  coverPhotos?: (string | null)[]; // Dedicated Shop Cover Photos Gallery (Multi-photo array)
   photoUrl?: string;
   logoImageUrl?: string;
+  profilePhotoUrl?: string; // Dedicated Shop Profile Photo
   phone: string;
   email?: string;
   address: string;
+  pincode?: string;
+  postalData?: PostalAddressMetadata;
   coordinates: MarketCoordinates;
+  locationAccuracy?: number; // in meters (e.g. 14.5)
+  locationSource?: LocationSource;
+  locationUpdatedAt?: string;
+  verificationStatus?: ShopVerificationStatus;
+  verifiedAt?: string;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  rejectionReason?: string;
+  activeChangeRequest?: ShopChangeRequest;
   operatingHours: OperatingHours;
   fulfillment: ShopFulfillmentSettings;
   financials: ShopFinancialSettings;
   isOpen?: boolean;
   isOpenNow?: boolean;
+  isAcceptingOrders?: boolean;
   closedReason?: string;
   reopenTime?: string;
   isVerifiedByAdmin: boolean;

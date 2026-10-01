@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { Shop } from '../../../types/market.ts';
 import { customerApi } from '../../../services/customerApi.ts';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { useCustomerCart } from '../../../context/CustomerCartContext.tsx';
 import { LiveOrderTrackingModal } from './LiveOrderTrackingModal.tsx';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -126,7 +128,7 @@ export const ShopOrderDetailsScreen: React.FC<ShopOrderDetailsScreenProps> = ({
     order.status === OrderStatus.PREPARING
   );
 
-  const totalPayable = order.financials?.customerTotal ?? 0;
+  const totalPayable = calculateOrderTotal(order);
   const orderNumberDisplay = order.orderNumber || `#ORD-${order.id.slice(-6).toUpperCase()}`;
   const formattedDateTime = new Date(order.createdAt).toLocaleDateString(
     language === 'hi' ? 'hi-IN' : 'en-IN',
@@ -460,8 +462,16 @@ export const ShopOrderDetailsScreen: React.FC<ShopOrderDetailsScreenProps> = ({
               <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
               <span className="truncate">{shopAddress}</span>
             </div>
-            <div className="font-mono font-bold text-slate-600 shrink-0">
-              {orderNumberDisplay} • {formattedDateTime}
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-mono font-bold text-slate-600 hidden xs:inline">
+                {orderNumberDisplay}
+              </span>
+              <OrderStatusBadge
+                status={order.status}
+                language={language}
+                variant="customer"
+                size="sm"
+              />
             </div>
           </div>
         </section>
@@ -604,15 +614,21 @@ export const ShopOrderDetailsScreen: React.FC<ShopOrderDetailsScreenProps> = ({
         {!isCancelled && (
           <section className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-3 sm:p-3.5 space-y-2.5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
                   <PackageCheck className="w-3.5 h-3.5 text-emerald-700" />
                 </span>
                 <div>
-                  <h3 className="text-xs sm:text-sm font-black text-slate-900">
+                  <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate">
                     {language === 'hi' ? 'ऑर्डर की स्थिति' : 'Order Status'}
                   </h3>
                 </div>
+                <OrderStatusBadge
+                  status={order.status}
+                  language={language}
+                  variant="customer"
+                  size="sm"
+                />
               </div>
 
               <button

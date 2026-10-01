@@ -129,6 +129,55 @@ class AdminApiService {
     return data.data;
   }
 
+  public async verifyShop(shopId: string): Promise<Shop> {
+    const res = await fetch(`${API_BASE}/admin/shops/${shopId}/verify`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Failed to verify shop');
+    return data.data;
+  }
+
+  public async rejectShop(shopId: string, rejectionReason: string): Promise<Shop> {
+    const res = await fetch(`${API_BASE}/admin/shops/${shopId}/reject`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ rejectionReason }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Failed to reject shop verification');
+    return data.data;
+  }
+
+  public async getChangeRequests(shopId?: string): Promise<any[]> {
+    const url = shopId
+      ? `${API_BASE}/admin/change-requests?shopId=${encodeURIComponent(shopId)}`
+      : `${API_BASE}/admin/change-requests`;
+    const res = await fetch(url, {
+      headers: this.getHeaders(),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Failed to fetch change requests');
+    return data.data;
+  }
+
+  public async reviewChangeRequest(
+    requestId: string,
+    action: 'APPROVE' | 'REJECT',
+    adminNotes?: string,
+    rejectionReason?: string
+  ): Promise<any> {
+    const res = await fetch(`${API_BASE}/admin/change-requests/${requestId}/review`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ action, adminNotes, rejectionReason }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || `Failed to ${action} change request`);
+    return data.data;
+  }
+
   public async updateShopDetails(shopId: string, updates: Partial<Shop>): Promise<Shop> {
     const res = await fetch(`${API_BASE}/admin/shops/${shopId}`, {
       method: 'PATCH',
@@ -661,6 +710,39 @@ class AdminApiService {
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error?.message || 'Failed to add products from master catalog');
+    return data.data;
+  }
+  /**
+   * Admin Photo Management for any User (Customer or Seller)
+   */
+  public async manageUserPhotos(
+    userId: string,
+    params: { type: 'profile' | 'cover'; action: 'set' | 'remove'; url?: string; imageData?: string }
+  ): Promise<any> {
+    const res = await fetch(`${API_BASE}/admin/users/${userId}/photos`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify(params),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Failed to update user photo');
+    return data.data;
+  }
+
+  /**
+   * Admin Photo Management for any Shop
+   */
+  public async manageShopPhotos(
+    shopId: string,
+    params: { type: 'profile' | 'cover'; action: 'set' | 'remove'; url?: string; imageData?: string }
+  ): Promise<Shop> {
+    const res = await fetch(`${API_BASE}/admin/shops/${shopId}/photos`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify(params),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error?.message || 'Failed to update shop photo');
     return data.data;
   }
 }

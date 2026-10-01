@@ -3,11 +3,16 @@
  * 
  * High-level marketplace operational and financial KPIs, interactive charts,
  * quick governance actions, and real-time live activity stream.
+ * Mobile-first dark premium dashboard layout matching the reference image.
  */
 
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../services/adminApi.ts';
 import { AdminPlatformStats, DailySalesChartPoint } from '../../../types/admin.ts';
+import { useAdminAuth } from '../../../context/AdminAuthContext.tsx';
+import { useAdminPreferences } from '../../../context/AdminPreferencesContext.tsx';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
+import { AppNotification } from '../../../types/notification.ts';
 import {
   Store,
   Users,
@@ -18,13 +23,17 @@ import {
   CheckCircle2,
   AlertTriangle,
   TrendingUp,
-  ArrowUpRight,
   ArrowRight,
   ShieldCheck,
   Zap,
-  RotateCcw,
-  Sparkles,
   BookOpen,
+  Sparkles,
+  RefreshCw,
+  Home,
+  Sliders,
+  ChevronRight,
+  Bell,
+  BarChart3,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -34,8 +43,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  BarChart,
-  Bar,
 } from 'recharts';
 
 interface AdminOverviewScreenProps {
@@ -43,24 +50,35 @@ interface AdminOverviewScreenProps {
 }
 
 export const AdminOverviewScreen: React.FC<AdminOverviewScreenProps> = ({ onNavigate }) => {
+  const { user } = useAdminAuth();
+  const { language, t } = useAdminPreferences();
   const [stats, setStats] = useState<AdminPlatformStats | null>(null);
   const [chartData, setChartData] = useState<DailySalesChartPoint[]>([]);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [timeFilter, setTimeFilter] = useState<'TODAY' | '7_DAYS' | '30_DAYS' | 'THIS_MONTH'>('TODAY');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showChart, setShowChart] = useState(true);
 
   const loadOverviewData = async () => {
     setIsLoading(true);
     try {
-      const [statsRes, chartsRes] = await Promise.all([
+      const [statsRes, chartsRes, notifsRes, ordersRes] = await Promise.all([
         adminApi.getStats(timeFilter),
         adminApi.getAnalyticsCharts(),
+        adminApi.getNotifications().catch(() => []),
+        adminApi.getOrders().catch(() => []),
       ]);
       setStats(statsRes);
       setChartData(chartsRes);
+      setNotifications(notifsRes || []);
+      setRecentOrders((ordersRes || []).slice(0, 5));
     } catch (err) {
       console.error('Failed to load overview data', err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -68,203 +86,437 @@ export const AdminOverviewScreen: React.FC<AdminOverviewScreenProps> = ({ onNavi
     loadOverviewData();
   }, [timeFilter]);
 
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    loadOverviewData();
+  };
+
   if (isLoading && !stats) {
     return (
-      <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
+      <div className="p-8 text-center flex flex-col items-center justify-center space-y-3 min-h-[50vh]">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-400 font-bold">Aggregating platform intelligence...</p>
+        <p className="text-xs text-slate-400 font-bold">Loading marketplace dashboard...</p>
       </div>
     );
   }
 
-  const kpis = [
+  // Exactly 4 Primary KPI Summary Cards in 2x2 Grid
+  const primaryKpis = [
     {
       id: 'today-sales',
-      label: "Today's Gross Sales",
+      label: language === 'hi' ? 'कुल बिक्री' : "Total Sales",
       value: `₹${stats?.todaySales?.toLocaleString('en-IN') || 0}`,
-      subtext: `From ${stats?.todayOrders || 0} orders today`,
+      badge: language === 'hi' ? `${stats?.todayOrders || 0} आज` : `${stats?.todayOrders || 0} today`,
+      badgeColor: 'text-emerald-400 bg-emerald-500/15',
       icon: IndianRupee,
-      color: 'text-emerald-400',
-      bgColor: 'bg-emerald-500/10 border-emerald-500/30',
+      iconColor: 'text-emerald-400',
+      iconBg: 'bg-emerald-500/15 border-emerald-500/30',
       actionTab: 'orders',
     },
     {
       id: 'platform-comm',
-      label: 'Platform Commission',
+      label: language === 'hi' ? 'कमीशन आय' : 'Commission',
       value: `₹${stats?.totalPlatformCommission?.toLocaleString('en-IN') || 0}`,
-      subtext: 'Auto-calculated platform revenue',
+      badge: language === 'hi' ? 'ऑटो सिंक' : 'Auto Sync',
+      badgeColor: 'text-indigo-400 bg-indigo-500/15',
       icon: Percent,
-      color: 'text-indigo-400',
-      bgColor: 'bg-indigo-500/10 border-indigo-500/30',
+      iconColor: 'text-indigo-400',
+      iconBg: 'bg-indigo-500/15 border-indigo-500/30',
       actionTab: 'commissions',
     },
     {
-      id: 'pending-settlements',
-      label: 'Pending Payouts',
-      value: `₹${stats?.pendingSellerSettlements?.toLocaleString('en-IN') || 0}`,
-      subtext: 'Merchant settlements awaiting release',
-      icon: Clock,
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-500/10 border-amber-500/30',
-      actionTab: 'settlements',
-    },
-    {
       id: 'active-shops',
-      label: 'Active Mandi Shops',
+      label: language === 'hi' ? 'सक्रिय दुकानें' : 'Active Shops',
       value: `${stats?.activeShops || 0} / ${stats?.totalShops || 0}`,
-      subtext: `${stats?.pendingShopApprovals || 0} pending review`,
+      badge: language === 'hi' ? `${stats?.pendingShopApprovals || 0} लंबित` : `${stats?.pendingShopApprovals || 0} pending`,
+      badgeColor: 'text-sky-400 bg-sky-500/15',
       icon: Store,
-      color: 'text-sky-400',
-      bgColor: 'bg-sky-500/10 border-sky-500/30',
+      iconColor: 'text-sky-400',
+      iconBg: 'bg-sky-500/15 border-sky-500/30',
       actionTab: 'shops',
     },
     {
       id: 'active-orders',
-      label: 'Live Active Orders',
+      label: language === 'hi' ? 'कुल ऑर्डर्स' : 'Total Orders',
       value: `${stats?.activeOrders || 0}`,
-      subtext: `${stats?.completedOrders || 0} completed successfully`,
+      badge: language === 'hi' ? `${stats?.completedOrders || 0} पूर्ण` : `${stats?.completedOrders || 0} done`,
+      badgeColor: 'text-amber-400 bg-amber-500/15',
       icon: ShoppingBag,
-      color: 'text-purple-400',
-      bgColor: 'bg-purple-500/10 border-purple-500/30',
+      iconColor: 'text-amber-400',
+      iconBg: 'bg-amber-500/15 border-amber-500/30',
       actionTab: 'orders',
     },
+  ];
+
+  // Quick Action cards (4 colorful cards in 2x2 grid)
+  const quickActions = [
     {
-      id: 'total-customers',
-      label: 'Registered Customers',
-      value: `${stats?.totalCustomers || 0}`,
-      subtext: 'Across local micro-markets',
-      icon: Users,
-      color: 'text-teal-400',
-      bgColor: 'bg-teal-500/10 border-teal-500/30',
-      actionTab: 'customers',
+      id: 'verify-shops',
+      title: 'Verify Shops',
+      badge: `${stats?.pendingShopApprovals || 0} Pending`,
+      badgeStyle: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      subtext: 'Review KYC documents',
+      icon: Store,
+      iconColor: 'text-amber-400',
+      cardStyle: 'bg-[#1a1714] border-amber-500/30 hover:border-amber-500/60',
+      actionTab: 'shops',
+    },
+    {
+      id: 'master-catalog',
+      title: 'Master Catalog',
+      badge: '260+ Items',
+      badgeStyle: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      subtext: 'Central Kirana list',
+      icon: BookOpen,
+      iconColor: 'text-indigo-400',
+      cardStyle: 'bg-[#151726] border-indigo-500/30 hover:border-indigo-500/60',
+      actionTab: 'master-catalog',
+    },
+    {
+      id: 'settlements',
+      title: 'Weekly Payouts',
+      badge: `₹${stats?.pendingSellerSettlements?.toLocaleString('en-IN') || 0}`,
+      badgeStyle: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      subtext: 'Merchant settlements',
+      icon: IndianRupee,
+      iconColor: 'text-emerald-400',
+      cardStyle: 'bg-[#12201b] border-emerald-500/30 hover:border-emerald-500/60',
+      actionTab: 'settlements',
+    },
+    {
+      id: 'support-disputes',
+      title: 'Support & Help',
+      badge: 'Active',
+      badgeStyle: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      subtext: 'Disputes & queries',
+      icon: AlertTriangle,
+      iconColor: 'text-rose-400',
+      cardStyle: 'bg-[#201418] border-rose-500/30 hover:border-rose-500/60',
+      actionTab: 'support',
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top Welcome & Time Filter Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
-              Live Governance
-            </span>
-            <span className="text-slate-400 text-xs">• Dadar Mandi Network</span>
+    <div className="max-w-md sm:max-w-2xl lg:max-w-6xl mx-auto space-y-3.5 sm:space-y-4 pb-24 lg:pb-8">
+      {/* 1. Header Layout & Greeting Section */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-indigo-400 flex items-center justify-center font-extrabold text-white text-sm shadow-md ring-2 ring-indigo-500/30 shrink-0">
+              {user?.fullName ? user.fullName.slice(0, 2).toUpperCase() : 'AD'}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400">Welcome back,</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
+                {user?.fullName || 'Super Admin'}
+              </h2>
+            </div>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-white mt-1 tracking-tight">
-            Marketplace Operations Overview
-          </h2>
-          <p className="text-xs text-slate-400">
-            Real-time financial reconciliation, shop fulfillment monitor, and platform health.
-          </p>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition"
+              title="Refresh Data"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-indigo-400' : ''}`} />
+            </button>
+            <button
+              onClick={() => onNavigate('orders')}
+              className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition relative"
+              title="Platform Alerts"
+            >
+              <Bell className="w-4 h-4" />
+              {(stats?.pendingShopApprovals || 0) > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400" />
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800 self-start md:self-auto">
-          {[
-            { id: 'TODAY', label: 'Today' },
-            { id: '7_DAYS', label: '7 Days' },
-            { id: '30_DAYS', label: '30 Days' },
-            { id: 'THIS_MONTH', label: 'Month' },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setTimeFilter(f.id as any)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-                timeFilter === f.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Time Filter Pills bar */}
+        <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-800/80">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            Period
+          </span>
+          <div className="flex items-center bg-slate-950 p-0.5 rounded-xl border border-slate-800">
+            {[
+              { id: 'TODAY', label: 'Today' },
+              { id: '7_DAYS', label: '7 Days' },
+              { id: '30_DAYS', label: '30 Days' },
+              { id: 'THIS_MONTH', label: 'Month' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setTimeFilter(f.id as any)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                  timeFilter === f.id
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {kpis.map((kpi) => {
+      {/* 2. Exactly 4 Compact Summary / Stat Cards in 2x2 Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        {primaryKpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <div
               key={kpi.id}
               onClick={() => onNavigate(kpi.actionTab)}
-              className={`rounded-3xl border p-5 bg-slate-900/90 hover:bg-slate-800/80 transition-all cursor-pointer shadow-lg hover:shadow-indigo-500/5 group relative overflow-hidden`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onNavigate(kpi.actionTab);
+                }
+              }}
+              className="rounded-2xl border border-slate-800/90 bg-slate-900/90 hover:bg-slate-850 hover:border-slate-700/80 p-3.5 transition cursor-pointer shadow-sm group flex flex-col justify-between min-h-[108px]"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                    {kpi.label}
-                  </p>
-                  <h3 className="text-2xl font-black text-white mt-1 group-hover:text-indigo-200 transition">
-                    {kpi.value}
-                  </h3>
-                  <p className="text-[11px] text-slate-400 mt-1">{kpi.subtext}</p>
+              <div className="flex items-center justify-between gap-1">
+                <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${kpi.iconBg} ${kpi.iconColor}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${kpi.badgeColor} truncate`}>
+                  {kpi.badge}
+                </span>
+              </div>
 
-                <div className={`p-3 rounded-2xl border ${kpi.bgColor} ${kpi.color}`}>
-                  <Icon className="w-5 h-5" />
+              <div className="my-1.5">
+                <div className="text-lg sm:text-xl font-extrabold text-white tracking-tight group-hover:text-indigo-200 transition truncate">
+                  {kpi.value}
+                </div>
+                <div className="text-[11px] font-medium text-slate-400 truncate mt-0.5">
+                  {kpi.label}
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] font-bold text-slate-400 group-hover:text-indigo-400">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-400 group-hover:text-indigo-400 transition pt-1 border-t border-slate-800/80">
                 <span>View Details</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition" />
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Analytics Chart & Quick Governance Strip */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Sales & Commission Revenue Trend */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-indigo-400" />
-                <span>Gross Merchandise Value & Orders Trend</span>
-              </h3>
-              <p className="text-xs text-slate-400">Daily sales performance across all verified mandi shops</p>
-            </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Last 7 Days
-            </span>
+      {/* 3. Green Promotional / Guide Banner Placement (Directly below the 4 stat cards) */}
+      <div className="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 border border-emerald-400/40 rounded-2xl p-3.5 sm:p-4 text-white shadow-lg shadow-emerald-950/40 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
+          <div className="min-w-0">
+            <h3 className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
+              Onboard New Kirana Shop
+            </h3>
+            <p className="text-[11px] text-emerald-100/90 line-clamp-1 mt-0.5">
+              Rapid 2-minute shop setup & central master catalog auto-sync.
+            </p>
+          </div>
+        </div>
 
-          <div className="h-64 sm:h-72 w-full pt-4">
+        <button
+          onClick={() => onNavigate('onboard')}
+          className="px-3.5 py-1.5 sm:py-2 rounded-xl bg-white text-emerald-950 font-extrabold text-xs flex items-center justify-center gap-1.5 transition shrink-0 shadow-md hover:bg-emerald-50 active:scale-95"
+        >
+          <span>Onboard Now</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* 4. Quick Actions Section with Compact Colorful Action Cards */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Quick Actions</span>
+          </h3>
+          <span className="text-[10px] text-slate-400 font-medium">Platform Controls</span>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          {quickActions.map((qa) => {
+            const Icon = qa.icon;
+            return (
+              <button
+                key={qa.id}
+                onClick={() => onNavigate(qa.actionTab)}
+                className={`rounded-2xl border p-3.5 text-left transition group flex flex-col justify-between min-h-[96px] ${qa.cardStyle}`}
+              >
+                <div className="flex items-center justify-between gap-1.5 w-full">
+                  <div className={`p-1.5 rounded-xl bg-slate-900/80 border border-slate-700/50 ${qa.iconColor}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border truncate ${qa.badgeStyle}`}>
+                    {qa.badge}
+                  </span>
+                </div>
+
+                <div className="mt-2">
+                  <div className="text-xs sm:text-sm font-bold text-white group-hover:text-indigo-200 transition truncate">
+                    {qa.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                    {qa.subtext}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 5. Recent Activity Section */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Recent Activity</span>
+          </h3>
+          <button
+            onClick={() => onNavigate('orders')}
+            className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1"
+          >
+            <span>See All</span>
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 sm:p-3 shadow-sm space-y-2">
+          {recentOrders.length > 0 ? (
+            recentOrders.slice(0, 4).map((order) => (
+              <div
+                key={order.id}
+                onClick={() => onNavigate('orders')}
+                role="button"
+                tabIndex={0}
+                className="p-2.5 rounded-xl bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 transition cursor-pointer flex items-center justify-between gap-2.5"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">
+                      Order #{order.id?.slice(-5).toUpperCase() || 'MANDI'} • {order.shopName || 'Shop'}
+                    </div>
+                    <div className="text-[10px] text-slate-400 truncate">
+                      {order.customerName || 'Customer'} • {new Date(order.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                  <div className="text-xs font-extrabold text-white">
+                    ₹{order.totalAmount || 0}
+                  </div>
+                  <OrderStatusBadge
+                    status={order.status || 'CONFIRMED'}
+                    variant="dark"
+                    size="sm"
+                    language={language}
+                  />
+                </div>
+              </div>
+            ))
+          ) : notifications.length > 0 ? (
+            notifications.slice(0, 4).map((n) => (
+              <div
+                key={n.id}
+                className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40 flex items-center justify-between gap-2.5"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{n.title}</div>
+                    <div className="text-[10px] text-slate-400 truncate">{n.message}</div>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 shrink-0">
+                  {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-5 text-xs text-slate-400">
+              No recent activity recorded today
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Analytics Trend AreaChart (Collapsible / Compact preservation) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 mb-2">
+          <div className="flex items-center gap-1.5">
+            <BarChart3 className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-xs sm:text-sm font-bold text-white">Revenue & Orders Performance</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              Sales
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Commission
+            </span>
+            <button
+              onClick={() => setShowChart(!showChart)}
+              className="text-[10px] font-bold text-slate-400 hover:text-white px-2 py-0.5 rounded-md bg-slate-800"
+            >
+              {showChart ? 'Hide' : 'Show'}
+            </button>
+          </div>
+        </div>
+
+        {showChart && (
+          <div className="h-40 sm:h-44 w-full pt-1">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
                   </linearGradient>
                   <linearGradient id="commGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="label" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v}`} />
+                <XAxis dataKey="label" stroke="#64748b" fontSize={10} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={10} tickLine={false} tickFormatter={(v) => `₹${v}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#0f172a',
                     borderColor: '#334155',
-                    borderRadius: '16px',
-                    fontSize: '12px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
                     color: '#fff',
+                    padding: '6px 10px',
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="sales"
-                  name="Gross Sales (₹)"
+                  name="Sales (₹)"
                   stroke="#6366f1"
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#salesGrad)"
                 />
@@ -273,115 +525,16 @@ export const AdminOverviewScreen: React.FC<AdminOverviewScreenProps> = ({ onNavi
                   dataKey="commission"
                   name="Commission (₹)"
                   stroke="#10b981"
-                  strokeWidth={2}
+                  strokeWidth={1.75}
                   fillOpacity={1}
                   fill="url(#commGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Right Col: Priority Action Queue */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400" />
-                <span>Governance Actions</span>
-              </h3>
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            </div>
-            <p className="text-xs text-slate-400 mb-4">
-              Pending approvals and financial settlement duties requiring administrative action.
-            </p>
-
-            <div className="space-y-2.5">
-              <button
-                onClick={() => onNavigate('shops')}
-                className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black text-xs">
-                    {stats?.pendingShopApprovals || 0}
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-white group-hover:text-amber-300">
-                      Shop Verification Queue
-                    </div>
-                    <div className="text-[10px] text-slate-400">Review documents & credentials</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-amber-400 group-hover:translate-x-1 transition" />
-              </button>
-
-              <button
-                onClick={() => onNavigate('master-catalog')}
-                className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-xs">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-white group-hover:text-indigo-300">
-                      Central Master Catalogue
-                    </div>
-                    <div className="text-[10px] text-slate-400">Manage 260+ standard kirana items</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-1 transition" />
-              </button>
-
-              <button
-                onClick={() => onNavigate('settlements')}
-                className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-xs">
-                    ₹
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-white group-hover:text-emerald-300">
-                      Weekly Payout Batch
-                    </div>
-                    <div className="text-[10px] text-slate-400">Disburse net merchant earnings</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition" />
-              </button>
-
-              <button
-                onClick={() => onNavigate('support')}
-                className="w-full p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-left flex items-center justify-between transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-black text-xs">
-                    !
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-white group-hover:text-rose-300">
-                      Support & Disputes
-                    </div>
-                    <div className="text-[10px] text-slate-400">Resolve customer/seller queries</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-rose-400 group-hover:translate-x-1 transition" />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-200">
-            <div className="font-bold flex items-center gap-1.5 text-indigo-300">
-              <ShieldCheck className="w-4 h-4 text-indigo-400" />
-              <span>Full Audit Trail Enforced</span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Every status toggle, inventory modification, and commission change is immutably logged with admin identity.
-            </p>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 };
+

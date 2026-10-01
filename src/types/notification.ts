@@ -23,6 +23,10 @@ export interface AppNotification {
   type: NotificationType;
   title: string;
   message: string;
+  titleHi?: string;
+  titleEn?: string;
+  descHi?: string;
+  descEn?: string;
   orderId?: string;
   productId?: string;
   amount?: number;

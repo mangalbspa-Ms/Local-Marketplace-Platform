@@ -9,6 +9,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SellerAuthProvider, useSellerAuth } from './context/SellerAuthContext.tsx';
 import { SellerLanguageProvider, useSellerLanguage } from './context/SellerLanguageContext.tsx';
+import { SellerThemeProvider, useSellerTheme } from './context/SellerThemeContext.tsx';
+import { SellerSecurityProvider, useSellerSecurity } from './context/SellerSecurityContext.tsx';
+import { SellerAppLockScreen } from './components/seller/security/SellerAppLockScreen.tsx';
 import { CustomerApp } from './components/customer/CustomerApp.tsx';
 import { SellerHeader } from './components/seller/common/SellerHeader.tsx';
 import { SellerBottomNav, SellerTab } from './components/seller/common/SellerBottomNav.tsx';
@@ -36,16 +39,41 @@ import { SellerShoppingRequestModal } from './components/seller/orders/SellerSho
 import { Store, ShoppingBag, ArrowLeftRight, Shield, Mic, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AdminPortal } from './components/admin/AdminPortal.tsx';
+import {
+  seedOrders,
+  seedProducts,
+  seedNotifications,
+  seedShoppingRequests,
+} from './server/storage/seedData.ts';
 
 function SellerAppInner() {
   const { user, shop, isAuthenticated, isLoading } = useSellerAuth();
   const { language, t } = useSellerLanguage();
+  const { theme } = useSellerTheme();
+  const { isAppLockEnabled, isLocked } = useSellerSecurity();
+
+  const activeShopId = shop?.id || 'shp_krishna_grocers';
 
   const [currentTab, setCurrentTab] = useState<SellerTab>('home');
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [shoppingRequests, setShoppingRequests] = useState<ShoppingRequest[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Tab switching with instant scroll-to-top to ensure the seller top header is never displaced or cut
+  const handleTabChange = (tab: SellerTab) => {
+    setCurrentTab(tab);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const matching = seedOrders.filter((o) => o.shopId === activeShopId);
+    return matching.length > 0 ? matching : seedOrders.filter((o) => o.shopId === 'shp_krishna_grocers');
+  });
+  const [products, setProducts] = useState<Product[]>(() =>
+    seedProducts.filter((p) => p.shopId === activeShopId || p.shopId === 'shp_krishna_grocers')
+  );
+  const [shoppingRequests, setShoppingRequests] = useState<ShoppingRequest[]>(() =>
+    seedShoppingRequests.filter((r) => r.shopId === activeShopId || r.shopId === 'shp_krishna_grocers')
+  );
+  const [notifications, setNotifications] = useState<AppNotification[]>(() =>
+    seedNotifications.filter((n) => !n.shopId || n.shopId === activeShopId || n.shopId === 'shp_krishna_grocers')
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modals state
@@ -57,23 +85,41 @@ function SellerAppInner() {
   const [selectedOrderForPickup, setSelectedOrderForPickup] = useState<Order | null>(null);
   const [selectedShoppingRequest, setSelectedShoppingRequest] = useState<ShoppingRequest | null>(null);
 
+  // Sync state when active shop changes
+  useEffect(() => {
+    if (shop?.id) {
+      const matchingOrders = seedOrders.filter((o) => o.shopId === shop.id);
+      if (matchingOrders.length > 0) {
+        setOrders(matchingOrders);
+      }
+    }
+  }, [shop?.id]);
+
   // Load shop products, orders, and voice shopping requests
   const loadData = useCallback(async () => {
     if (!shop) return;
     setIsRefreshing(true);
     try {
       const [orderList, productList, notifList, requestList] = await Promise.all([
-        sellerApi.getOrders(),
-        sellerApi.getShopProducts(shop.id),
-        sellerApi.getNotifications(),
-        sellerApi.getShoppingRequests().catch(() => [] as ShoppingRequest[]),
+        sellerApi.getOrders().catch(() => null),
+        sellerApi.getShopProducts(shop.id).catch(() => null),
+        sellerApi.getNotifications().catch(() => null),
+        sellerApi.getShoppingRequests().catch(() => null),
       ]);
-      setOrders(orderList);
-      setProducts(productList);
-      setNotifications(notifList);
-      setShoppingRequests(requestList);
+      if (Array.isArray(orderList) && orderList.length > 0) {
+        setOrders(orderList);
+      }
+      if (Array.isArray(productList) && productList.length > 0) {
+        setProducts(productList);
+      }
+      if (Array.isArray(notifList) && notifList.length > 0) {
+        setNotifications(notifList);
+      }
+      if (Array.isArray(requestList)) {
+        setShoppingRequests(requestList);
+      }
     } catch (err) {
-      console.error('Failed to fetch seller data', err);
+      console.warn('Deferred sync of seller data, using current cache:', err);
     } finally {
       setIsRefreshing(false);
     }
@@ -98,6 +144,20 @@ function SellerAppInner() {
       }
     } catch (err) {
       console.error('Failed to accept order', err);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status: OrderStatus.ACCEPTED,
+                statusHistory: [
+                  ...(o.statusHistory || []),
+                  { status: OrderStatus.ACCEPTED, timestamp: new Date().toISOString(), note: 'Order accepted by seller' },
+                ],
+              }
+            : o
+        )
+      );
     }
   };
 
@@ -110,19 +170,53 @@ function SellerAppInner() {
       }
     } catch (err) {
       console.error('Failed to reject order', err);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status: OrderStatus.CANCELLED,
+                statusHistory: [
+                  ...(o.statusHistory || []),
+                  { status: OrderStatus.CANCELLED, timestamp: new Date().toISOString(), note: 'Order rejected by seller' },
+                ],
+              }
+            : o
+        )
+      );
     }
   };
 
   const handleUpdateOrderStatus = async (orderId: string, targetStatus: OrderStatus, note?: string) => {
-    const updated = await sellerApi.updateOrderStatus(orderId, targetStatus, note);
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
-    if (selectedOrderForDetail?.id === orderId) {
-      setSelectedOrderForDetail(updated);
-    }
-    // Refresh products in case stock changed
-    if (shop) {
-      const updatedProducts = await sellerApi.getShopProducts(shop.id);
-      setProducts(updatedProducts);
+    try {
+      const updated = await sellerApi.updateOrderStatus(orderId, targetStatus, note);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+      if (selectedOrderForDetail?.id === orderId) {
+        setSelectedOrderForDetail(updated);
+      }
+      // Refresh products in case stock changed
+      if (shop) {
+        const updatedProducts = await sellerApi.getShopProducts(shop.id).catch(() => null);
+        if (Array.isArray(updatedProducts)) {
+          setProducts(updatedProducts);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to update order status to ${targetStatus}`, err);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                status: targetStatus,
+                statusHistory: [
+                  ...(o.statusHistory || []),
+                  { status: targetStatus, timestamp: new Date().toISOString(), note },
+                ],
+              }
+            : o
+        )
+      );
     }
   };
 
@@ -154,8 +248,13 @@ function SellerAppInner() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    await sellerApi.deleteProduct(productId);
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
+    try {
+      await sellerApi.deleteProduct(productId);
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+    } catch (err) {
+      console.error('Failed to delete product', err);
+      throw err;
+    }
   };
 
   // Notification Handlers
@@ -188,19 +287,39 @@ function SellerAppInner() {
     return <LoginScreen />;
   }
 
+  // If App Lock is enabled and locked, guard the entire app and render App Lock Screen
+  if (isAppLockEnabled && isLocked) {
+    return <SellerAppLockScreen />;
+  }
+
   const unreadNotifsCount = notifications.filter((n) => !n.isRead).length;
   const pendingOrdersCount = orders.filter((o) => o.status === OrderStatus.CONFIRMED).length;
   const preparingOrdersCount = orders.filter(
     (o) => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.PREPARING
   ).length;
+  const lowStockCount = products.filter((p) => {
+    if (!p) return false;
+    const stock = p.currentStockInBaseUnits ?? p.inventory?.currentStockInBaseUnits ?? 0;
+    const threshold = p.lowStockThresholdInBaseUnits ?? p.inventory?.lowStockThreshold ?? 5;
+    return stock <= threshold;
+  }).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-24 max-w-md mx-auto relative shadow-md border-x border-slate-200">
+    <div
+      id="seller-app-root"
+      data-seller-theme={theme}
+      className={`min-h-screen font-sans pb-24 max-w-md mx-auto relative shadow-2xl transition-colors duration-150 ${
+        theme === 'light'
+          ? 'seller-theme-light bg-[#f8fafc] text-slate-800 border-x border-slate-300'
+          : 'bg-[#070e24] text-slate-100 border-x border-cyan-500/20'
+      }`}
+    >
       {/* Top Android App Bar Header */}
       <SellerHeader
         unreadNotifsCount={unreadNotifsCount}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenShopStatus={() => setIsShopStatusOpen(true)}
+        onNavigateToProfile={() => handleTabChange('profile')}
         onRefresh={loadData}
         isRefreshing={isRefreshing}
       />
@@ -212,7 +331,7 @@ function SellerAppInner() {
             orders={orders}
             products={products}
             shoppingRequests={shoppingRequests}
-            onSelectTab={setCurrentTab}
+            onSelectTab={handleTabChange}
             onOpenShopStatus={() => setIsShopStatusOpen(true)}
             onViewOrderDetails={(order) => setSelectedOrderForDetail(order)}
             onOpenShoppingRequest={(req) => setSelectedShoppingRequest(req)}
@@ -228,7 +347,7 @@ function SellerAppInner() {
             orders={orders}
             onViewOrderDetails={(order) => setSelectedOrderForDetail(order)}
             onOpenPacking={(order) => {
-              setCurrentTab('packing');
+              handleTabChange('packing');
             }}
             onOpenPickupVerification={(order) => {
               setSelectedOrderForPickup(order);
@@ -244,12 +363,13 @@ function SellerAppInner() {
           />
         )}
 
-        {currentTab === 'products' && (
+        {(currentTab === 'products' || currentTab === 'inventory') && (
           <ProductsScreen
             products={products}
             onCreateProduct={handleCreateProduct}
             onUpdateProduct={handleUpdateProduct}
             onDeleteProduct={handleDeleteProduct}
+            onUpdateStock={handleUpdateStock}
             onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
           />
         )}
@@ -258,8 +378,14 @@ function SellerAppInner() {
           <EarningsScreen orders={orders} />
         )}
 
-        {currentTab === 'more' && (
-          <ShopProfileScreen />
+        {(currentTab === 'profile' || currentTab === 'more') && (
+          <ShopProfileScreen
+            products={products}
+            onCreateProduct={handleCreateProduct}
+            onUpdateProduct={handleUpdateProduct}
+            onDeleteProduct={handleDeleteProduct}
+            onBack={() => handleTabChange('home')}
+          />
         )}
       </main>
 
@@ -284,9 +410,10 @@ function SellerAppInner() {
       {/* Fixed Android Bottom Navigation Bar */}
       <SellerBottomNav
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={handleTabChange}
         pendingOrdersCount={pendingOrdersCount}
         preparingOrdersCount={preparingOrdersCount}
+        lowStockCount={lowStockCount}
       />
 
       {/* --- Global Modals --- */}
@@ -305,7 +432,7 @@ function SellerAppInner() {
         onUpdateStatus={handleUpdateOrderStatus}
         onOpenPacking={(order) => {
           setSelectedOrderForDetail(null);
-          setCurrentTab('packing');
+          handleTabChange('packing');
         }}
         onOpenPickupVerification={(order) => {
           setSelectedOrderForDetail(null);
@@ -347,11 +474,11 @@ function SellerAppInner() {
       {/* 5. Notifications Drawer / Modal (Screen 18) */}
       {isNotificationsOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2.5 sm:p-4 pb-20 sm:pb-4 animate-in fade-in duration-150"
           onClick={() => setIsNotificationsOpen(false)}
         >
           <div
-            className="bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl"
+            className="bg-[#0b142c] border border-cyan-500/35 rounded-3xl w-full max-w-md max-h-[calc(100dvh-5.5rem)] sm:max-h-[88vh] flex flex-col text-slate-100 shadow-[0_0_50px_rgba(0,0,0,0.95)] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <NotificationsScreen
@@ -360,14 +487,6 @@ function SellerAppInner() {
               onMarkAllAsRead={handleMarkAllNotificationsAsRead}
               onClose={() => setIsNotificationsOpen(false)}
             />
-            <div className="p-4 border-t border-slate-800">
-              <button
-                onClick={() => setIsNotificationsOpen(false)}
-                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
-              >
-                {language === 'hi' ? 'बंद करें (Close)' : 'Close'}
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -411,11 +530,22 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('token') || params.get('portal') === 'seller') return 'seller';
       if (params.get('portal') === 'admin') return 'admin';
+      const savedPortal = localStorage.getItem('active_marketplace_portal');
+      if (savedPortal === 'admin' || savedPortal === 'seller' || savedPortal === 'customer') {
+        return savedPortal;
+      }
     } catch {
       // fallback
     }
     return 'customer';
   });
+
+  const selectPortal = (portal: 'customer' | 'seller' | 'admin') => {
+    setActivePortal(portal);
+    try {
+      localStorage.setItem('active_marketplace_portal', portal);
+    } catch (_) {}
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
@@ -428,7 +558,7 @@ export default function App() {
 
         <div className="flex items-center bg-slate-900 border border-slate-700/80 p-0.5 rounded-xl">
           <button
-            onClick={() => setActivePortal('customer')}
+            onClick={() => selectPortal('customer')}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-black transition-all ${
               activePortal === 'customer'
                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
@@ -440,7 +570,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActivePortal('seller')}
+            onClick={() => selectPortal('seller')}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-black transition-all ${
               activePortal === 'seller'
                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
@@ -452,7 +582,7 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActivePortal('admin')}
+            onClick={() => selectPortal('admin')}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-black transition-all ${
               activePortal === 'admin'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
@@ -472,7 +602,11 @@ export default function App() {
         ) : activePortal === 'seller' ? (
           <SellerLanguageProvider>
             <SellerAuthProvider>
-              <SellerAppInner />
+              <SellerThemeProvider>
+                <SellerSecurityProvider>
+                  <SellerAppInner />
+                </SellerSecurityProvider>
+              </SellerThemeProvider>
             </SellerAuthProvider>
           </SellerLanguageProvider>
         ) : (

@@ -1,6 +1,6 @@
 /**
- * Orders Management Hub Screen (Screen 5 & 6)
- * Filter by fulfillment type (Store Pickup vs Home Delivery) and status lifecycle.
+ * Orders Management Hub Screen (2050 Futuristic Command)
+ * Grouped orders lifecycle, pickup vs delivery filters, real customer avatars, and fast actions.
  */
 
 import React, { useState } from 'react';
@@ -8,7 +8,6 @@ import {
   ShoppingBag,
   Truck,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
   ChevronRight,
@@ -16,10 +15,13 @@ import {
   KeyRound,
   ShieldCheck,
   Building2,
+  Package,
 } from 'lucide-react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
 import { groupOrdersByTimeSlot } from '../../../utils/orderTimeGroups.ts';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 
 interface OrdersScreenProps {
   orders: Order[];
@@ -55,88 +57,93 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.CONFIRMED:
-        return 'bg-amber-50 border-amber-200 text-amber-800';
+        return 'bg-amber-950/80 border-amber-500/50 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.3)]';
       case OrderStatus.ACCEPTED:
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-cyan-950/80 border-cyan-400/50 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.3)]';
       case OrderStatus.PREPARING:
-        return 'bg-purple-50 border-purple-200 text-purple-800';
+        return 'bg-purple-950/80 border-purple-400/50 text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.3)]';
       case OrderStatus.READY_FOR_PICKUP:
-        return 'bg-teal-50 border-teal-200 text-teal-800';
+        return 'bg-teal-950/80 border-teal-400/50 text-teal-300 shadow-[0_0_8px_rgba(20,184,166,0.3)]';
       case OrderStatus.OUT_FOR_DELIVERY:
-        return 'bg-indigo-50 border-indigo-200 text-indigo-800';
+        return 'bg-indigo-950/80 border-indigo-400/50 text-indigo-300 shadow-[0_0_8px_rgba(99,102,241,0.3)]';
       case OrderStatus.COMPLETED:
-        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+        return 'bg-emerald-950/80 border-emerald-400/50 text-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.3)]';
       case OrderStatus.CANCELLED:
-        return 'bg-red-50 border-red-200 text-red-800';
+        return 'bg-rose-950/80 border-rose-500/50 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.3)]';
       default:
-        return 'bg-slate-100 border-slate-200 text-slate-700';
+        return 'bg-slate-900 border-slate-700 text-slate-300';
     }
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto">
+    <div id="seller-orders-screen" className="p-3 sm:p-4 space-y-4 max-w-4xl mx-auto text-slate-100">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h1 className="font-black text-lg text-slate-900 tracking-tight flex items-center space-x-2">
-            <ShoppingBag className="w-5 h-5 text-emerald-700" />
+          <h1 className="font-black text-xl text-white tracking-tight flex items-center space-x-2">
+            <ShoppingBag className="w-5 h-5 text-cyan-400" />
             <span>{t('nav.orders')}</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {language === 'hi' ? 'दुकान के सभी चालू व पूर्ण आर्डर (समय अनुसार)' : 'All shop orders organized by time'}
+          <p className="text-xs text-slate-400 mt-0.5">
+            {language === 'hi' ? 'दुकान के सभी चालू व पूर्ण आर्डर (समय अनुसार)' : 'All shop orders organized by time slots'}
           </p>
         </div>
 
-        <span className="px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold font-mono">
-          {filteredOrders.length} / {orders.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-0.5 rounded-full bg-[#0b142c] border border-cyan-500/30 text-cyan-300 text-xs font-bold font-mono shadow-sm">
+            {filteredOrders.length} / {orders.length} ऑर्डर्स
+          </span>
+        </div>
       </div>
 
-      {/* Fulfillment Toggle Pills */}
-      <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200">
+      {/* Fulfillment Toggle Pills (Futuristic Segment Switch) */}
+      <div className="flex p-1 bg-[#0b142c]/90 rounded-2xl border border-cyan-500/20 shadow-md">
         <button
+          type="button"
           onClick={() => setFulfillmentFilter('ALL')}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             fulfillmentFilter === 'ALL'
-              ? 'bg-white text-slate-900 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(6,182,212,0.4)]'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
-          {language === 'hi' ? 'सभी आर्डर' : 'All'}
+          {language === 'hi' ? 'सभी आर्डर (All)' : 'All Orders'}
         </button>
         <button
+          type="button"
           onClick={() => setFulfillmentFilter(FulfillmentType.STORE_PICKUP)}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
             fulfillmentFilter === FulfillmentType.STORE_PICKUP
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.5)]'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Building2 className="w-3.5 h-3.5" />
-          <span>{language === 'hi' ? 'पिकअप' : 'Pickup'}</span>
+          <span>{language === 'hi' ? 'दुकान पिकअप' : 'Pickup'}</span>
         </button>
         <button
+          type="button"
           onClick={() => setFulfillmentFilter(FulfillmentType.HOME_DELIVERY)}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1 cursor-pointer ${
             fulfillmentFilter === FulfillmentType.HOME_DELIVERY
-              ? 'bg-purple-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
+              ? 'bg-purple-600 text-white shadow-[0_0_12px_rgba(147,51,234,0.5)]'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
           <Truck className="w-3.5 h-3.5" />
-          <span>{language === 'hi' ? 'डिलीवरी' : 'Delivery'}</span>
+          <span>{language === 'hi' ? 'होम डिलीवरी' : 'Delivery'}</span>
         </button>
       </div>
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+        <Search className="w-4 h-4 text-cyan-400 absolute left-3.5 top-3" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={language === 'hi' ? 'आर्डर नंबर या ग्राहक के नाम से खोजें...' : 'Search by order #, customer name...'}
-          className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-600"
+          className="w-full pl-10 pr-4 py-2.5 bg-[#0b142c]/90 border border-cyan-500/30 rounded-2xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_12px_rgba(6,182,212,0.3)] transition"
         />
       </div>
 
@@ -156,10 +163,10 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
             <button
               key={item.id}
               onClick={() => setStatusFilter(item.id as any)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 border transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 border transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                  : 'bg-[#0b142c]/80 border-cyan-500/20 text-slate-400 hover:text-slate-200'
               }`}
             >
               {item.label}
@@ -170,28 +177,28 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
 
       {/* Orders Grouped by Time Slots */}
       {filteredOrders.length === 0 ? (
-        <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl space-y-2">
-          <ShoppingBag className="w-7 h-7 text-slate-400 mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">
+        <div className="p-8 text-center bg-[#0b142c]/90 border border-cyan-500/20 rounded-3xl space-y-2">
+          <ShoppingBag className="w-8 h-8 text-cyan-500/40 mx-auto" />
+          <p className="text-xs text-slate-400 font-medium">
             {language === 'hi' ? 'कोई आर्डर नहीं मिला' : 'No orders found matching filters'}
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {timeGroups.map((group) => (
             <div key={group.id} className="space-y-2.5">
               {/* Time Slot Section Header */}
-              <div className="flex items-center justify-between px-1.5 py-1 rounded-xl bg-slate-100/80 border border-slate-200/70">
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-2xl bg-[#0b142c]/70 border border-cyan-500/20">
                 <div className="flex items-center space-x-2">
-                  <span className="text-base">{group.icon}</span>
-                  <h2 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                  <span className="text-sm">{group.icon}</span>
+                  <h2 className="font-extrabold text-xs sm:text-sm text-white">
                     {language === 'hi' ? group.titleHi : group.titleEn}
                   </h2>
-                  <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.2 rounded-full font-mono">
+                  <span className="text-[10px] font-bold text-cyan-300 bg-[#070e24] border border-cyan-500/30 px-2 py-0.2 rounded-full font-mono">
                     {group.orders.length}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-medium">
+                <span className="text-[11px] text-slate-400 font-medium">
                   {language === 'hi' ? group.badgeHi : group.badgeEn}
                 </span>
               </div>
@@ -201,7 +208,7 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                 {group.orders.map((order) => {
                   const isPickup = order.fulfillmentType === FulfillmentType.STORE_PICKUP;
                   const itemCount = order.items.length;
-                  const totalFormatted = order.financials.customerTotal.toLocaleString('en-IN', {
+                  const totalFormatted = calculateOrderTotal(order).toLocaleString('en-IN', {
                     maximumFractionDigits: 0,
                   });
 
@@ -209,22 +216,22 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                     <div
                       key={order.id}
                       onClick={() => onViewOrderDetails(order)}
-                      className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-300 hover:shadow-xs transition-all cursor-pointer space-y-2.5 shadow-2xs group"
+                      className="p-3.5 rounded-3xl bg-[#0b142c]/90 border border-cyan-500/20 hover:border-cyan-400/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all cursor-pointer space-y-2.5 shadow-lg group"
                     >
                       {/* Customer Row Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3 min-w-0 flex-1">
-                          {/* Real Customer Photo */}
+                          {/* Customer Photo */}
                           {order.customerAvatar && order.customerAvatar.trim() !== '' ? (
                             <img
                               src={order.customerAvatar}
                               alt={order.customerName}
-                              className="w-12 h-12 rounded-full object-cover shrink-0 border border-slate-200 shadow-2xs"
+                              className="w-11 h-11 rounded-2xl object-cover shrink-0 border border-cyan-500/30"
                               referrerPolicy="no-referrer"
                               loading="lazy"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-sm shrink-0 border bg-emerald-100 text-emerald-800 border-emerald-300">
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xs shrink-0 border bg-cyan-950 text-cyan-300 border-cyan-500/40 font-mono">
                               {order.customerName
                                 .split(' ')
                                 .filter(Boolean)
@@ -236,29 +243,32 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                           )}
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-extrabold text-sm text-slate-900 truncate group-hover:text-emerald-700 transition-colors">
+                            <div className="flex items-center space-x-2 flex-wrap gap-y-0.5">
+                              <h3 className="font-extrabold text-sm text-white truncate group-hover:text-cyan-300 transition-colors">
                                 {order.customerName}
                               </h3>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(order.status)}`}>
-                                {t(`status.${order.status}`)}
-                              </span>
+                              <OrderStatusBadge
+                                status={order.status}
+                                variant="seller"
+                                size="sm"
+                                customLabel={t(`status.${order.status}`)}
+                              />
                             </div>
 
-                            <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 text-xs text-slate-600 mt-0.5">
-                              <span className="font-mono font-bold text-slate-700 text-[11px]">{order.orderNumber}</span>
-                              <span className="text-slate-300">•</span>
-                              <span className="font-bold text-slate-800">
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs text-slate-400 mt-0.5">
+                              <span className="font-mono font-bold text-cyan-400 text-[11px]">{order.orderNumber}</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="font-bold text-slate-300">
                                 {itemCount} {language === 'hi' ? 'सामान' : 'items'}
                               </span>
-                              <span className="text-slate-300">•</span>
-                              <span className="font-mono font-black text-slate-900">
+                              <span className="text-slate-600">•</span>
+                              <span className="font-mono font-black text-cyan-300">
                                 ₹{totalFormatted}
                               </span>
-                              <span className="text-slate-300">•</span>
+                              <span className="text-slate-600">•</span>
                               <span
                                 className={`inline-flex items-center space-x-0.5 font-bold text-[11px] ${
-                                  isPickup ? 'text-blue-700' : 'text-emerald-700'
+                                  isPickup ? 'text-blue-400' : 'text-purple-400'
                                 }`}
                               >
                                 {isPickup ? (
@@ -282,41 +292,41 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                           <span className="text-slate-400 font-mono text-[11px] hidden sm:inline">
                             {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
-                          <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
+                          <div className="w-8 h-8 rounded-xl bg-[#070e24] text-slate-400 border border-cyan-500/20 group-hover:border-cyan-400 group-hover:text-cyan-300 flex items-center justify-center transition">
                             <ChevronRight className="w-4 h-4" />
                           </div>
                         </div>
                       </div>
 
                       {/* Items Thumbnails Ribbon (Compact preview) */}
-                      <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-100 flex items-center justify-between text-xs gap-2">
+                      <div className="p-2 rounded-2xl bg-[#070e24]/80 border border-cyan-500/15 flex items-center justify-between text-xs gap-2">
                         <div className="flex items-center space-x-1.5 overflow-hidden flex-1">
                           {order.items.slice(0, 4).map((item, iIdx) => (
                             <div
                               key={iIdx}
-                              className="flex items-center space-x-1 px-1.5 py-0.5 rounded-lg bg-white border border-slate-200/80 shrink-0 shadow-2xs"
+                              className="flex items-center space-x-1 px-2 py-1 rounded-xl bg-[#0b142c] border border-cyan-500/20 shrink-0"
                             >
                               {item.productImage && item.productImage.trim() !== '' ? (
                                 <img
                                   src={item.productImage}
                                   alt={item.productName}
-                                  className="w-5 h-5 rounded object-cover shrink-0"
+                                  className="w-4 h-4 rounded-md object-cover shrink-0"
                                   referrerPolicy="no-referrer"
                                   loading="lazy"
                                 />
                               ) : (
-                                <ShoppingBag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <Package className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                               )}
-                              <span className="font-semibold text-slate-700 text-[11px] truncate max-w-[90px]">
+                              <span className="font-semibold text-white text-[11px] truncate max-w-[90px]">
                                 {item.productName}
                               </span>
-                              <span className="text-slate-400 text-[10px]">
+                              <span className="text-cyan-300 font-mono text-[10px]">
                                 ({item.orderedQuantityDisplay})
                               </span>
                             </div>
                           ))}
                           {order.items.length > 4 && (
-                            <span className="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md shrink-0">
+                            <span className="text-[10px] font-bold text-cyan-300 bg-[#0b142c] border border-cyan-500/20 px-1.5 py-0.5 rounded-lg shrink-0">
                               +{order.items.length - 4} more
                             </span>
                           )}
@@ -330,9 +340,9 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                               e.stopPropagation();
                               onOpenPacking(order);
                             }}
-                            className="py-1 px-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold shadow-xs shrink-0 cursor-pointer"
+                            className="py-1 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold shadow-[0_0_10px_rgba(168,85,247,0.4)] shrink-0 cursor-pointer"
                           >
-                            {language === 'hi' ? 'पैकिंग करें' : 'Pack Order'}
+                            {language === 'hi' ? 'पैकिंग शुरू करें' : 'Start Packing'}
                           </button>
                         )}
 
@@ -343,10 +353,10 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                               e.stopPropagation();
                               onOpenPickupVerification(order);
                             }}
-                            className="py-1 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-xs flex items-center space-x-1 shrink-0 cursor-pointer"
+                            className="py-1 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-[11px] font-black shadow-[0_0_10px_rgba(6,182,212,0.4)] flex items-center space-x-1 shrink-0 cursor-pointer"
                           >
                             <KeyRound className="w-3 h-3" />
-                            <span>{language === 'hi' ? 'पिन चेक' : 'Verify PIN'}</span>
+                            <span>{language === 'hi' ? 'पिन सत्यापित करें' : 'Verify PIN'}</span>
                           </button>
                         )}
                       </div>

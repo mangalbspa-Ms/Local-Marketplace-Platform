@@ -317,6 +317,8 @@ If all required fields are present, generate a clear Confirmation Prompt in Engl
     else if (raw.includes('packet') || raw.includes('pack') || raw.includes('pkt') || raw.includes('पैकेट') || raw.includes('पैक')) entities.unit = 'packet';
     else if (raw.includes('piece') || raw.includes('pc') || raw.includes('nag') || raw.includes('unit') || raw.includes('पीस') || raw.includes('नग') || raw.includes('pcs')) entities.unit = 'piece';
     else if (raw.includes('dozen') || raw.includes('darjan') || raw.includes('दर्जन')) entities.unit = 'dozen';
+    else if (raw.includes('plate') || raw.includes('plates') || raw.includes('प्लेट')) entities.unit = 'plate';
+    else if (raw.includes('tikiya') || raw.includes('टिकिया')) entities.unit = 'tikiya';
 
     // Common Hindi commodity dictionary mapping for lookup
     const hindiDictionary: Record<string, string[]> = {
@@ -331,12 +333,24 @@ If all required fields are present, generate a clear Confirmation Prompt in Engl
       'नमक': ['salt', 'namak', 'tata salt', 'नमक'],
       'अटा': ['atta', 'aata', 'flour', 'आटा'],
       'प्याज': ['onion', 'pyaz', 'प्याज'],
+      'केला': ['banana', 'kela', 'केला', 'केले'],
+      'हरी पत्ती धनिया': ['hari dhaniya', 'hara dhaniya', 'dhaniya patti', 'fresh coriander', 'हरी धनिया', 'हरा धनिया', 'धनिया पत्ती'],
+      'चौमीन': ['chowmein', 'chaumin', 'चाउमीन', 'चौमीन', 'noodles'],
+      'छोला': ['chhola', 'chola', 'chole', 'छोला', 'छोले'],
+      'मंचूरियन': ['manchurian', 'मंचूरियन'],
+      'दही': ['curd', 'dahi', 'दही'],
     };
 
     // Check for target existing product in shop
+    const isHariDhaniyaQuery = raw.includes('hari dhaniya') || raw.includes('hara dhaniya') || raw.includes('हरी धनिया') || raw.includes('धनिया पत्ती');
     for (const prod of params.shopProducts) {
       const prodNameLower = prod.name.toLowerCase();
       const prodHindiLower = (prod.nameHindi || '').toLowerCase();
+
+      // Guard: "hari dhaniya" MUST resolve to fresh coriander / Hari Patti Dhaniya, NEVER Dhaniya Powder!
+      if (isHariDhaniyaQuery && (prodNameLower.includes('powder') || prodHindiLower.includes('पाउडर') || prod.id.includes('powder'))) {
+        continue;
+      }
 
       if (
         raw.includes(prodNameLower) ||

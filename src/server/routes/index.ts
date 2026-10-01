@@ -15,6 +15,7 @@ import adminRoutes from './admin.routes.ts';
 import billingRoutes from './billing.routes.ts';
 import aiRoutes from './ai.routes.ts';
 import shoppingRequestRoutes from './shoppingRequest.routes.ts';
+import voiceShoppingRoutes from './voiceShopping.routes.ts';
 import { ResponseUtil } from '../utils/response.ts';
 import { ImageStorageService } from '../services/imageStorage.service.ts';
 import { serverConfig } from '../config/env.ts';
@@ -67,6 +68,27 @@ apiRouter.get('/uploads/:filename', (req, res) => {
   return res.status(404).json({ success: false, message: 'Image not found' });
 });
 
+// Postal code proxy to prevent browser cross-origin fetch failures
+apiRouter.get('/postal/:pincode', async (req, res) => {
+  const pin = req.params.pincode.replace(/\D/g, '').trim();
+  if (pin.length !== 6) {
+    return res.json({ success: false, data: null });
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    const upstream = await fetch(`https://api.postalpincode.in/pincode/${pin}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (upstream.ok) {
+      const data = await upstream.json();
+      return res.json({ success: true, data });
+    }
+  } catch (_) {}
+  return res.json({ success: false, data: null });
+});
+
 // Mount modular sub-routers
 apiRouter.use('/auth', authRoutes);
 apiRouter.use(authRoutes);
@@ -79,5 +101,6 @@ apiRouter.use(adminRoutes);
 apiRouter.use(billingRoutes);
 apiRouter.use(aiRoutes);
 apiRouter.use(shoppingRequestRoutes);
+apiRouter.use(voiceShoppingRoutes);
 
 export default apiRouter;

@@ -17,6 +17,7 @@ export enum OrderStatus {
   PREPARING = 'PREPARING',
   READY_FOR_PICKUP = 'READY_FOR_PICKUP',
   OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  ARRIVED = 'ARRIVED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
   REFUND_PENDING = 'REFUND_PENDING',
@@ -81,6 +82,7 @@ export interface Order {
   deliveryPartnerId?: string;           // If assigned to a delivery person
   items: OrderItem[];
   financials: OrderFinancialBreakdown;
+  total?: number;                       // Optional computed order total
   status: OrderStatus;
   paymentId?: string;
   paymentMethod?: string;

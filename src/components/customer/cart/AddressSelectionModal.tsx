@@ -5,11 +5,13 @@
  * and set default addresses for local market deliveries.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCustomerAuth } from '../../../context/CustomerAuthContext.tsx';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { UserAddress } from '../../../types/auth.ts';
 import { MapPin, Plus, Check, Trash2, Home, Briefcase, Building, Sparkles } from 'lucide-react';
+import { lookupPostalPincode } from '../../../utils/postalPincodeService.ts';
+import { CustomerGoogleMapPickerModal } from './CustomerGoogleMapPickerModal.tsx';
 
 interface AddressSelectionModalProps {
   isOpen: boolean;
@@ -30,8 +32,61 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
   const [landmark, setLandmark] = useState('');
   const [area, setArea] = useState('Dadar West');
   const [city, setCity] = useState('Mumbai');
+  const [state, setState] = useState('Maharashtra');
+  const [district, setDistrict] = useState('Mumbai');
+  const [postOffice, setPostOffice] = useState('Dadar HO');
+  const [postOfficeOptions, setPostOfficeOptions] = useState<string[]>([]);
   const [pincode, setPincode] = useState('400028');
   const [isDefault, setIsDefault] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isPincodeLoading, setIsPincodeLoading] = useState(false);
+  const [postalLookupSuccess, setPostalLookupSuccess] = useState<string | null>(null);
+
+  // Auto-fetch State, District, and Post Office/Area when a valid 6-digit PIN is entered
+  useEffect(() => {
+    const cleanPin = pincode.replace(/\D/g, '').trim();
+    if (cleanPin.length === 6) {
+      let isMounted = true;
+      setIsPincodeLoading(true);
+      lookupPostalPincode(cleanPin)
+        .then((data) => {
+          if (!isMounted) return;
+          setIsPincodeLoading(false);
+          if (data) {
+            setState(data.state);
+            setDistrict(data.district);
+            setCity(data.district || city);
+            if (data.postOffice) {
+              setPostOffice(data.postOffice);
+            }
+            if (data.locality || data.postOffice) {
+              setArea(data.locality || data.postOffice);
+            }
+            if (data.postOffices && data.postOffices.length > 0) {
+              setPostOfficeOptions(data.postOffices);
+            } else if (data.postOffice) {
+              setPostOfficeOptions([data.postOffice]);
+            }
+            setPostalLookupSuccess(
+              `${data.postOffice ? data.postOffice + ', ' : ''}${data.district}, ${data.state}`
+            );
+          } else {
+            setPostalLookupSuccess(null);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setIsPincodeLoading(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    } else {
+      setPostalLookupSuccess(null);
+      setPostOfficeOptions([]);
+    }
+  }, [pincode]);
 
   if (!isOpen) return null;
 
@@ -43,15 +98,47 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
       label,
       streetAddress: streetAddress.trim(),
       landmark: landmark.trim(),
-      area,
-      city,
-      pincode,
+      area: (postOffice || area).trim(),
+      city: (district || city).trim(),
+      state: state.trim() || undefined,
+      district: district.trim() || undefined,
+      postOffice: postOffice.trim() || undefined,
+      pincode: pincode.trim(),
+      coordinates: coordinates ? { lat: coordinates.lat, lng: coordinates.lng } : undefined,
       isDefault,
     });
 
     setIsAddingNew(false);
     setStreetAddress('');
     setLandmark('');
+    setCoordinates(undefined);
+  };
+
+  const handleConfirmMapLocation = (loc: {
+    lat: number;
+    lng: number;
+    formattedAddress?: string;
+    area?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  }) => {
+    setCoordinates({ lat: loc.lat, lng: loc.lng });
+    if (loc.formattedAddress && !streetAddress) {
+      setStreetAddress(loc.formattedAddress);
+    }
+    if (loc.area) {
+      setArea(loc.area);
+      setPostOffice(loc.area);
+    }
+    if (loc.city) {
+      setCity(loc.city);
+      setDistrict(loc.city);
+    }
+    if (loc.state) setState(loc.state);
+    if (loc.pincode && loc.pincode.length === 6) {
+      setPincode(loc.pincode);
+    }
   };
 
   const addresses = user?.addresses || [];
@@ -125,6 +212,12 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
                               Default
                             </span>
                           )}
+                          {addr.coordinates && (
+                            <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 flex items-center gap-0.5">
+                              <MapPin className="w-2.5 h-2.5 text-emerald-600" />
+                              <span>Map Pin</span>
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-700 font-medium leading-tight">
                           {addr.streetAddress}
@@ -135,7 +228,8 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
                           </p>
                         )}
                         <p className="text-[10px] text-slate-500">
-                          {addr.area}, {addr.city} - {addr.pincode}
+                          {addr.postOffice ? `${addr.postOffice}, ` : ''}{addr.area ? `${addr.area}, ` : ''}{addr.district || addr.city}
+                          {addr.state ? `, ${addr.state}` : ''} - {addr.pincode}
                         </p>
                       </div>
                     </div>
@@ -202,6 +296,36 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
               </div>
             </div>
 
+            {/* Google Maps Location Picker Button */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setIsMapModalOpen(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs"
+              >
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                <span>📍 Map से Location चुनें</span>
+              </button>
+
+              {coordinates && (
+                <div className="mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 font-medium">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">
+                      {language === 'hi' ? 'मैप लोकेशन सेट:' : 'Location Pinned:'} {coordinates.lat.toFixed(5)}, {coordinates.lng.toFixed(5)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMapModalOpen(true)}
+                    className="text-[10px] text-emerald-700 underline font-bold hover:text-emerald-900 shrink-0 ml-2"
+                  >
+                    {language === 'hi' ? 'बदलें' : 'Change'}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Flat / Building / Street */}
             <div>
               <label className="text-[11px] font-bold text-slate-700 block mb-1">
@@ -231,36 +355,103 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
               />
             </div>
 
-            {/* Area, City, Pincode */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Pincode with live auto-fetch */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] font-bold text-slate-700">
+                  {language === 'hi' ? 'पिनकोड (6-अंक दर्ज करें):' : 'Pincode (6-digits):'}
+                </label>
+                {isPincodeLoading && (
+                  <span className="text-[10px] text-emerald-600 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                    <span>{language === 'hi' ? 'सत्यापित हो रहा है...' : 'Fetching details...'}</span>
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="e.g. 400028"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 font-mono tracking-wider font-semibold"
+              />
+            </div>
+
+            {/* Auto-fetched State & District */}
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Area</label>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  {language === 'hi' ? 'राज्य (State)' : 'State'}
+                </label>
                 <input
                   type="text"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="e.g. Maharashtra"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">City</label>
+                <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                  {language === 'hi' ? 'जिला (District)' : 'District'}
+                </label>
                 <input
                   type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Pincode</label>
-                <input
-                  type="text"
-                  value={pincode}
-                  onChange={(e) => setPincode(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900"
+                  value={district || city}
+                  onChange={(e) => {
+                    setDistrict(e.target.value);
+                    setCity(e.target.value);
+                  }}
+                  placeholder="e.g. Mumbai"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
             </div>
+
+            {/* Post Office / Area */}
+            <div>
+              <label className="text-[10px] font-bold text-slate-600 block mb-1">
+                {language === 'hi' ? 'पोस्ट ऑफिस / क्षेत्र (Post Office / Area)' : 'Post Office / Area'}
+              </label>
+              {postOfficeOptions.length > 1 ? (
+                <select
+                  value={postOffice || area}
+                  onChange={(e) => {
+                    const sel = e.target.value;
+                    setPostOffice(sel);
+                    setArea(sel);
+                  }}
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  {postOfficeOptions.map((po) => (
+                    <option key={po} value={po}>
+                      {po}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={postOffice || area}
+                  onChange={(e) => {
+                    setPostOffice(e.target.value);
+                    setArea(e.target.value);
+                  }}
+                  placeholder="e.g. Dadar HO / Dadar West"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              )}
+            </div>
+
+            {postalLookupSuccess && (
+              <div className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+                <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                <span className="truncate">
+                  {language === 'hi' ? 'पिनकोड से प्राप्त विवरण: ' : 'Postal verification: '} {postalLookupSuccess}
+                </span>
+              </div>
+            )}
 
             {/* Make Default checkbox */}
             <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer pt-1">
@@ -292,6 +483,15 @@ export const AddressSelectionModal: React.FC<AddressSelectionModalProps> = ({
           </form>
         )}
       </div>
+
+      {/* Google Maps Location Picker Modal */}
+      <CustomerGoogleMapPickerModal
+        isOpen={isMapModalOpen}
+        initialCoordinates={coordinates}
+        initialAddressHint={streetAddress}
+        onClose={() => setIsMapModalOpen(false)}
+        onConfirmLocation={handleConfirmMapLocation}
+      />
     </div>
   );
 };

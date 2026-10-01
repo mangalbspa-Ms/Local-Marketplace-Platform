@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 
 interface IncomingOrderCardProps {
   order: Order;
@@ -170,7 +171,7 @@ export const IncomingOrderCard: React.FC<IncomingOrderCardProps> = ({
         <div>
           <span className="text-[10px] text-slate-500 uppercase font-bold block">{t('order.customer_paid')}</span>
           <span className="font-mono text-sm font-black text-slate-900">
-            ₹{order.financials.customerTotal.toFixed(2)}
+            ₹{calculateOrderTotal(order).toFixed(2)}
           </span>
         </div>
 

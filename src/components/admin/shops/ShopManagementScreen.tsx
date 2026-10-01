@@ -39,12 +39,14 @@ import {
 } from 'lucide-react';
 import { ShopSetupEditScreen } from './ShopSetupEditScreen.tsx';
 import { ShopCard } from '../../shops/ShopCard.tsx';
+import { ShopVerificationReviewTab } from './ShopVerificationReviewTab.tsx';
 
 interface ShopManagementScreenProps {
   onNavigateToOnboarding?: () => void;
 }
 
 export const ShopManagementScreen: React.FC<ShopManagementScreenProps> = ({ onNavigateToOnboarding }) => {
+  const [mainTab, setMainTab] = useState<'DIRECTORY' | 'VERIFICATION'>('DIRECTORY');
   const [shops, setShops] = useState<any[]>([]);
   const [markets, setMarkets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,15 +174,18 @@ export const ShopManagementScreen: React.FC<ShopManagementScreenProps> = ({ onNa
     }
   };
 
-  const filtered = shops.filter(
-    (s) =>
-      (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.sellerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.marketName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.phone || '').includes(searchQuery) ||
-      (s.address?.city || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = shops.filter((s) => {
+    const q = (searchQuery || '').toLowerCase();
+    const addrStr = typeof s?.address === 'string' ? s.address : (s?.address?.city || '');
+    return (
+      (s?.name || '').toLowerCase().includes(q) ||
+      (s?.category || '').toLowerCase().includes(q) ||
+      (s?.sellerName || '').toLowerCase().includes(q) ||
+      (s?.marketName || '').toLowerCase().includes(q) ||
+      (s?.phone || '').includes(searchQuery || '') ||
+      addrStr.toLowerCase().includes(q)
+    );
+  });
 
   // If a shop is selected for comprehensive setup & catalog management, render the dedicated screen
   if (selectedShopForSetup) {
@@ -206,116 +211,175 @@ export const ShopManagementScreen: React.FC<ShopManagementScreenProps> = ({ onNa
   const totalGrossSales = shops.reduce((sum, s) => sum + (s.grossSales || 0), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Store className="w-5 h-5 text-indigo-400" />
-            <span>दुकानदार / दुकानें (Shops & Merchant Directory)</span>
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            सभी दुकानों की प्रोफ़ाइल, स्थान, कैटलॉग, इन्वेंटरी, डिलीवरी नियम और कमीशन प्रबंधित करें।
-          </p>
-        </div>
+    <div className="space-y-3.5">
+      {/* Primary Navigation Tabs between Directory and Verification */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2.5 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          onClick={() => setMainTab('DIRECTORY')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer shrink-0 ${
+            mainTab === 'DIRECTORY'
+              ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-900/40'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <Store className="w-3.5 h-3.5" />
+          <span>दुकान डायरेक्टरी (Shop Directory)</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-slate-950/80 text-slate-300 text-[10px] font-mono">
+            {shops.length}
+          </span>
+        </button>
 
-        {/* Actions and Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          {onNavigateToOnboarding && (
-            <button
-              type="button"
-              onClick={onNavigateToOnboarding}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-900/30 transition active:scale-95"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>+ नई दुकान जोड़ें (Onboard)</span>
-            </button>
+        <button
+          type="button"
+          onClick={() => setMainTab('VERIFICATION')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer shrink-0 ${
+            mainTab === 'VERIFICATION'
+              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-900/40'
+              : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <span>सत्यापन समीक्षा (Verifications)</span>
+          {pendingCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black animate-pulse">
+              {pendingCount}
+            </span>
           )}
-
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 font-bold"
-          >
-            <option value="ALL">सभी स्थितियां (All Status)</option>
-            <option value="ACTIVE">सक्रिय दुकानें (Active)</option>
-            <option value="PENDING">सत्यापन पेंडिंग (Pending)</option>
-            <option value="SUSPENDED">सस्पेंड (Suspended)</option>
-            <option value="INACTIVE">बंद (Inactive)</option>
-          </select>
-
-          {/* Market filter */}
-          <select
-            value={selectedMarketId}
-            onChange={(e) => setSelectedMarketId(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 font-bold"
-          >
-            <option value="ALL">सभी मंडियां (All Markets)</option>
-            {markets.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        </button>
       </div>
 
-      {/* Directory Quick Metrics Banner */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="text-[10px] font-bold text-slate-400 uppercase">कुल दुकानें (Total Shops)</div>
-          <div className="text-xl font-black text-white mt-0.5">{shops.length}</div>
-        </div>
-        <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="text-[10px] font-bold text-emerald-400 uppercase">सक्रिय (Active Stores)</div>
-          <div className="text-xl font-black text-emerald-400 mt-0.5">{activeCount}</div>
-        </div>
-        <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="text-[10px] font-bold text-amber-400 uppercase">स्वीकृति पेंडिंग (Pending)</div>
-          <div className="text-xl font-black text-amber-400 mt-0.5">{pendingCount}</div>
-        </div>
-        <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
-          <div className="text-[10px] font-bold text-indigo-400 uppercase">कुल बिक्री (Platform GMV)</div>
-          <div className="text-xl font-black text-indigo-400 mt-0.5">₹{totalGrossSales.toLocaleString('en-IN')}</div>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative max-w-md">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="दुकान का नाम, दुकानदार, फोन नंबर या शहर से खोजें..."
-          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-2.5 pl-10 text-xs text-white placeholder-slate-500 outline-none transition"
+      {mainTab === 'VERIFICATION' ? (
+        <ShopVerificationReviewTab
+          onShopUpdated={(updated) => {
+            setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+          }}
+          onOpenShopDetail={(shop) => setSelectedShopForSetup(shop)}
         />
-        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-      </div>
-
-      {/* Shops Grid */}
-      {isLoading ? (
-        <div className="p-8 text-center text-xs text-slate-400 font-bold">लोड हो रहा है...</div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-xs text-slate-400">
-          कोई दुकान नहीं मिली। कृपया खोज शब्द या फ़िल्टर बदलें।
-        </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4">
-          {filtered.map((shop) => (
-            <ShopCard
-              key={shop.id}
-              shop={shop}
-              variant="admin"
-              onClick={() => setSelectedShopForSetup(shop)}
-              onOpenSetup={() => setSelectedShopForSetup(shop)}
-              onOpenCommission={() => handleOpenCommissionModal(shop)}
-              onOpenFulfillment={() => handleOpenFulfillmentModal(shop)}
-              onToggleStatus={(target) => handleUpdateStatus(shop.id, target)}
-              language="hi"
-            />
-          ))}
-        </div>
+        <>
+          {/* Header Bar */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                <Store className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <span>दुकानदार / दुकानें (Shops & Merchant Directory)</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    {filtered.length} / {shops.length}
+                  </span>
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  सभी दुकानों की प्रोफ़ाइल, स्थान, कैटलॉग, इन्वेंटरी, डिलीवरी नियम और कमीशन प्रबंधित करें
+                </p>
+              </div>
+            </div>
+
+            {/* Actions and Filters */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {onNavigateToOnboarding && (
+                <button
+                  type="button"
+                  onClick={onNavigateToOnboarding}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm shadow-emerald-900/30 transition active:scale-95 shrink-0"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ नई दुकान (Onboard)</span>
+                </button>
+              )}
+
+              {/* Status filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-semibold"
+              >
+                <option value="ALL">सभी स्थितियां (All Status)</option>
+                <option value="ACTIVE">सक्रिय (Active)</option>
+                <option value="PENDING">सत्यापन पेंडिंग (Pending)</option>
+                <option value="SUSPENDED">सस्पेंड (Suspended)</option>
+                <option value="INACTIVE">बंद (Inactive)</option>
+              </select>
+
+              {/* Market filter */}
+              <select
+                value={selectedMarketId}
+                onChange={(e) => setSelectedMarketId(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-semibold max-w-[150px] truncate"
+              >
+                <option value="ALL">सभी मंडियां (All Markets)</option>
+                {markets.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Directory Quick Metrics Banner */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs">
+              <div className="text-[10px] font-bold text-slate-400 uppercase">कुल दुकानें (Total)</div>
+              <div className="text-lg font-black text-white mt-0.5">{shops.length}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs">
+              <div className="text-[10px] font-bold text-emerald-400 uppercase">सक्रिय (Active Stores)</div>
+              <div className="text-lg font-black text-emerald-400 mt-0.5">{activeCount}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs">
+              <div className="text-[10px] font-bold text-amber-400 uppercase">स्वीकृति पेंडिंग (Pending)</div>
+              <div className="text-lg font-black text-amber-400 mt-0.5">{pendingCount}</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs">
+              <div className="text-[10px] font-bold text-indigo-400 uppercase">कुल बिक्री (Platform GMV)</div>
+              <div className="text-lg font-black text-indigo-300 mt-0.5">₹{totalGrossSales.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
+            <div className="relative max-w-md">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="दुकान का नाम, दुकानदार, फोन नंबर या शहर से खोजें..."
+                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 pl-8 text-xs text-white placeholder-slate-500 outline-none transition"
+              />
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+            </div>
+          </div>
+
+          {/* Shops Grid */}
+          {isLoading ? (
+            <div className="p-8 text-center text-xs text-slate-400 font-bold bg-slate-900/60 border border-slate-800 rounded-xl">
+              लोड हो रहा है...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-8 text-center text-xs text-slate-400">
+              कोई दुकान नहीं मिली। कृपया खोज शब्द या फ़िल्टर बदलें।
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filtered.map((shop) => (
+                <ShopCard
+                  key={shop.id}
+                  shop={shop}
+                  variant="admin"
+                  onClick={() => setSelectedShopForSetup(shop)}
+                  onOpenSetup={() => setSelectedShopForSetup(shop)}
+                  onOpenCommission={() => handleOpenCommissionModal(shop)}
+                  onOpenFulfillment={() => handleOpenFulfillmentModal(shop)}
+                  onToggleStatus={(target) => handleUpdateStatus(shop.id, target)}
+                  language="hi"
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Fulfillment Governance Modal */}
@@ -328,10 +392,12 @@ export const ShopManagementScreen: React.FC<ShopManagementScreenProps> = ({ onNa
                 <span>Shop Fulfillment Governance</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setFulfillmentModalShop(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-3.5 h-3.5" />
+                <span>Close</span>
               </button>
             </div>
 
@@ -570,16 +636,18 @@ export const ShopManagementScreen: React.FC<ShopManagementScreenProps> = ({ onNa
       {commissionModalShop && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md shadow-2xl p-6 relative">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4 sticky top-0 bg-slate-900 z-10">
               <h3 className="text-base font-black text-white flex items-center gap-2">
                 <Percent className="w-4 h-4 text-indigo-400" />
                 <span>Shop Commission Override</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setCommissionModalShop(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-3.5 h-3.5" />
+                <span>Close</span>
               </button>
             </div>
 

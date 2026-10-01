@@ -56,7 +56,11 @@ export class OrderController {
 
   public static async getSellerSettlements(req: Request, res: Response, next: NextFunction) {
     try {
-      const shopId = req.user?.shopId;
+      const shopId =
+        req.user?.shopId ||
+        (req.query.shopId as string) ||
+        (req.headers['x-shop-id'] as string) ||
+        (req.user ? db.getShopsBySeller(req.user.userId)[0]?.id : undefined);
       if (!shopId) {
         throw new ForbiddenError('Only sellers with associated shop can view settlements.');
       }
@@ -69,7 +73,11 @@ export class OrderController {
 
   public static async getSellerFinancialSummary(req: Request, res: Response, next: NextFunction) {
     try {
-      const shopId = req.user?.shopId;
+      const shopId =
+        req.user?.shopId ||
+        (req.query.shopId as string) ||
+        (req.headers['x-shop-id'] as string) ||
+        (req.user ? db.getShopsBySeller(req.user.userId)[0]?.id : undefined);
       if (!shopId) {
         throw new ForbiddenError('Only sellers with associated shop can view financial summaries.');
       }

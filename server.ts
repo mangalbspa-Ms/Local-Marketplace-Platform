@@ -20,17 +20,60 @@ async function bootstrap() {
   // Trust reverse proxy (Google Cloud Run / nginx)
   app.set('trust proxy', 1);
 
+  // CORS & Preflight handling for browser and iframe preview
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-auth-user-id, x-user-id, x-correlation-id, Origin, Accept');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   // Global Middlewares
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(requestLogger);
   app.use('/api', rateLimiter({ windowMs: 60 * 1000, max: 600 }));
 
+  // Direct Android APK download endpoint
+  app.get(['/download/apk', '/LocalMandi-Platform.apk'], (req, res) => {
+    const apkPath = path.join(process.cwd(), 'android-build', 'LocalMandi-Platform.apk');
+    res.download(apkPath, 'LocalMandi-Platform.apk', (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({
+          success: false,
+          error: {
+            code: 'APK_NOT_FOUND',
+            message: 'Android APK build not found. Please build the APK first.',
+          },
+        });
+      }
+    });
+  });
+
   // API Routes
   app.use('/api', apiRouter);
 
   // Error Handler for API routes
   app.use('/api', errorHandler);
+
+  // API 404 handler - ensure /api requests NEVER return SPA index.html
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: `API endpoint ${req.method} ${req.originalUrl} not found`,
+        statusCode: 404,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  });
 
   // Vite middleware for development / Static serving for production
   if (process.env.NODE_ENV !== 'production') {

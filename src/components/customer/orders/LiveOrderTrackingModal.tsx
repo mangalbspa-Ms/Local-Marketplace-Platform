@@ -20,6 +20,8 @@ import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { customerApi } from '../../../services/customerApi.ts';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import {
   Package,
   Store,
@@ -115,7 +117,7 @@ export const LiveOrderTrackingModal: React.FC<LiveOrderTrackingModalProps> = ({
   const isPickup = order.fulfillmentType === FulfillmentType.STORE_PICKUP;
   const isTerminal = order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
   const pickupPin = order.pickupCode;
-  const totalPayable = order.financials?.customerTotal ?? 0;
+  const totalPayable = calculateOrderTotal(order);
   const orderIdShort = `#ORD${order.id.slice(-6).toUpperCase()}`;
 
   // Timeline Steps
@@ -236,16 +238,24 @@ export const LiveOrderTrackingModal: React.FC<LiveOrderTrackingModalProps> = ({
               </div>
             </div>
 
-            {/* Badge */}
-            <div
-              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1 ${
-                isPickup
-                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  : 'bg-indigo-100 text-indigo-900 border border-indigo-300'
-              }`}
-            >
-              {isPickup ? <Store className="w-3.5 h-3.5" /> : <Bike className="w-3.5 h-3.5" />}
-              <span>{isPickup ? '🏪 Store Pickup' : '🏠 Home Delivery'}</span>
+            {/* Badges: Fulfillment & Status */}
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <div
+                className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 ${
+                  isPickup
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                }`}
+              >
+                {isPickup ? <Store className="w-3 h-3" /> : <Bike className="w-3 h-3" />}
+                <span>{isPickup ? 'Store Pickup' : 'Home Delivery'}</span>
+              </div>
+              <OrderStatusBadge
+                status={order.status}
+                language={language}
+                variant="customer"
+                size="sm"
+              />
             </div>
           </div>
         </div>

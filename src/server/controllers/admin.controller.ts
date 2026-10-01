@@ -18,6 +18,7 @@ import {
   SubscriptionPaymentStatus,
 } from '../../types/financial.ts';
 import { LocalMarket } from '../../types/market.ts';
+import { ImageStorageService } from '../services/imageStorage.service.ts';
 
 export class AdminController {
   /**
@@ -427,6 +428,105 @@ export class AdminController {
     }
   }
 
+  // --- Shop Verification & Change Request Governance ---
+  public static async verifyShop(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { shopId } = req.params;
+      const adminUser = req.user!;
+      const admin = db.getUserById(adminUser.userId);
+      const adminName = admin?.fullName || 'Platform Admin';
+
+      const updatedShop = db.verifyShop(shopId, adminUser.userId, adminName);
+
+      db.recordAuditLog({
+        eventType: AuditEventType.ORDER_STATUS_CHANGED,
+        shopId: updatedShop.id,
+        sellerId: updatedShop.sellerId,
+        performedByUserId: adminUser.userId,
+        details: { action: 'SHOP_VERIFIED_BY_ADMIN', shopName: updatedShop.name },
+      });
+
+      return ResponseUtil.success(res, updatedShop, 'Shop verified successfully and protected fields locked.');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async rejectShop(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { shopId } = req.params;
+      const { rejectionReason } = req.body;
+      const adminUser = req.user!;
+
+      if (!rejectionReason || !rejectionReason.trim()) {
+        throw new ValidationError('अस्वीकृति का कारण (Rejection reason) आवश्यक है।');
+      }
+
+      const updatedShop = db.rejectShop(shopId, adminUser.userId, rejectionReason.trim());
+
+      db.recordAuditLog({
+        eventType: AuditEventType.ORDER_STATUS_CHANGED,
+        shopId: updatedShop.id,
+        sellerId: updatedShop.sellerId,
+        performedByUserId: adminUser.userId,
+        details: { action: 'SHOP_REJECTED_BY_ADMIN', shopName: updatedShop.name, rejectionReason },
+      });
+
+      return ResponseUtil.success(res, updatedShop, 'Shop verification rejected.');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async listChangeRequests(req: Request, res: Response, next: NextFunction) {
+    try {
+      const shopId = req.query.shopId as string | undefined;
+      const list = db.getShopChangeRequests(shopId);
+      return ResponseUtil.success(res, list);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async reviewChangeRequest(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { requestId } = req.params;
+      const { action, adminNotes, rejectionReason } = req.body;
+      const adminUser = req.user!;
+
+      if (!action || !['APPROVE', 'REJECT'].includes(action)) {
+        throw new ValidationError('Action must be APPROVE or REJECT');
+      }
+      if (action === 'REJECT' && (!rejectionReason || !rejectionReason.trim())) {
+        throw new ValidationError('Rejection reason is required when rejecting a change request.');
+      }
+
+      const result = db.reviewShopChangeRequest(
+        requestId,
+        adminUser.userId,
+        action,
+        adminNotes?.trim(),
+        rejectionReason?.trim()
+      );
+
+      db.recordAuditLog({
+        eventType: AuditEventType.ORDER_STATUS_CHANGED,
+        shopId: result.shop.id,
+        sellerId: result.shop.sellerId,
+        performedByUserId: adminUser.userId,
+        details: { action: `CHANGE_REQUEST_${action}`, requestId, shopName: result.shop.name },
+      });
+
+      return ResponseUtil.success(
+        res,
+        result,
+        `Change request ${action === 'APPROVE' ? 'approved and applied' : 'rejected'}`
+      );
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async updateShopDetails(req: Request, res: Response, next: NextFunction) {
     try {
       const { shopId } = req.params;
@@ -451,6 +551,12 @@ export class AdminController {
         ...shop,
         ...req.body,
         fulfillment: mergedFulfillment,
+        profilePhotoUrl: req.body.profilePhotoUrl !== undefined ? req.body.profilePhotoUrl : (req.body.photoUrl !== undefined ? req.body.photoUrl : shop.profilePhotoUrl),
+        photoUrl: req.body.profilePhotoUrl !== undefined ? req.body.profilePhotoUrl : (req.body.photoUrl !== undefined ? req.body.photoUrl : shop.photoUrl),
+        logoImageUrl: req.body.profilePhotoUrl !== undefined ? req.body.profilePhotoUrl : (req.body.photoUrl !== undefined ? req.body.photoUrl : shop.logoImageUrl),
+        coverPhotoUrl: req.body.coverPhotoUrl !== undefined ? req.body.coverPhotoUrl : (req.body.bannerUrl !== undefined ? req.body.bannerUrl : shop.coverPhotoUrl),
+        bannerUrl: req.body.coverPhotoUrl !== undefined ? req.body.coverPhotoUrl : (req.body.bannerUrl !== undefined ? req.body.bannerUrl : shop.bannerUrl),
+        bannerImageUrl: req.body.coverPhotoUrl !== undefined ? req.body.coverPhotoUrl : (req.body.bannerUrl !== undefined ? req.body.bannerUrl : shop.bannerImageUrl),
         id: shop.id,
         sellerId: shop.sellerId,
       });
@@ -464,6 +570,114 @@ export class AdminController {
       });
 
       return ResponseUtil.success(res, updated, 'Shop details updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Admin Photo Management for Shops (Profile & Cover)
+   */
+  public static async manageShopPhotos(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { shopId } = req.params;
+      const shop = db.getShopById(shopId);
+      if (!shop) throw new NotFoundError('Shop', shopId);
+
+      const { type, action, url, imageData } = req.body;
+      if (!type || !['profile', 'cover'].includes(type)) {
+        throw new ValidationError('Photo type must be either "profile" or "cover".');
+      }
+      if (!action || !['set', 'remove'].includes(action)) {
+        throw new ValidationError('Action must be either "set" or "remove".');
+      }
+
+      let finalUrl = '';
+      if (action === 'set') {
+        if (imageData) {
+          const uploadFolder = type === 'cover' ? 'covers' : 'shops';
+          const uploadRes = await ImageStorageService.uploadImage(imageData, uploadFolder);
+          finalUrl = uploadRes.url;
+        } else if (url && typeof url === 'string') {
+          finalUrl = url.trim();
+        } else {
+          throw new ValidationError('Either imageUrl or imageData must be provided when setting photo.');
+        }
+      }
+
+      const updates: any = {};
+      if (type === 'profile') {
+        updates.profilePhotoUrl = finalUrl;
+        updates.photoUrl = finalUrl;
+        updates.logoImageUrl = finalUrl;
+      } else {
+        updates.coverPhotoUrl = finalUrl;
+        updates.bannerUrl = finalUrl;
+        updates.bannerImageUrl = finalUrl;
+      }
+
+      const updated = db.updateShop(shopId, updates);
+
+      db.recordAuditLog({
+        eventType: AuditEventType.ORDER_STATUS_CHANGED,
+        shopId: shop.id,
+        sellerId: shop.sellerId,
+        performedByUserId: req.user!.userId,
+        details: { action: `SHOP_${type.toUpperCase()}_PHOTO_${action.toUpperCase()}`, finalUrl },
+      });
+
+      return ResponseUtil.success(res, updated, `Shop ${type} photo ${action === 'set' ? 'updated' : 'removed'} successfully`);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Admin Photo Management for Users / Customers / Sellers (Profile & Cover)
+   */
+  public static async manageUserPhotos(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { userId } = req.params;
+      const user = db.getUserById(userId);
+      if (!user) throw new NotFoundError('User', userId);
+
+      const { type, action, url, imageData } = req.body;
+      if (!type || !['profile', 'cover'].includes(type)) {
+        throw new ValidationError('Photo type must be either "profile" or "cover".');
+      }
+      if (!action || !['set', 'remove'].includes(action)) {
+        throw new ValidationError('Action must be either "set" or "remove".');
+      }
+
+      let finalUrl = '';
+      if (action === 'set') {
+        if (imageData) {
+          const uploadFolder = type === 'cover' ? 'covers' : 'profiles';
+          const uploadRes = await ImageStorageService.uploadImage(imageData, uploadFolder);
+          finalUrl = uploadRes.url;
+        } else if (url && typeof url === 'string') {
+          finalUrl = url.trim();
+        } else {
+          throw new ValidationError('Either imageUrl or imageData must be provided when setting photo.');
+        }
+      }
+
+      if (type === 'profile') {
+        user.avatarUrl = finalUrl;
+        user.profilePhotoUrl = finalUrl;
+      } else {
+        user.coverPhotoUrl = finalUrl;
+      }
+
+      const saved = db.saveUser(user);
+
+      db.recordAuditLog({
+        eventType: AuditEventType.ORDER_STATUS_CHANGED,
+        performedByUserId: req.user!.userId,
+        details: { action: `USER_${type.toUpperCase()}_PHOTO_${action.toUpperCase()}`, targetUserId: userId, finalUrl },
+      });
+
+      return ResponseUtil.success(res, saved, `User ${type} photo ${action === 'set' ? 'updated' : 'removed'} successfully`);
     } catch (err) {
       next(err);
     }

@@ -16,11 +16,13 @@
  *    - 🔄 डेमो ग्राहक खाता बदलें (Switch Demo Profile)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { useCustomerAuth, DEMO_CUSTOMERS } from '../../../context/CustomerAuthContext.tsx';
 import { useCustomerMarket } from '../../../context/CustomerMarketContext.tsx';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { AddressSelectionModal } from '../cart/AddressSelectionModal.tsx';
+import { PhotoManagerModal } from '../../common/PhotoManagerModal.tsx';
 import {
   User,
   MapPin,
@@ -38,6 +40,9 @@ import {
   Bell,
   ShieldCheck,
   Package,
+  Camera,
+  Image as ImageIcon,
+  Edit3,
 } from 'lucide-react';
 
 interface CustomerProfileScreenProps {
@@ -53,13 +58,31 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
   onOpenVoiceAssistant,
   onOpenNotifications,
 }) => {
-  const { user, switchCustomer, selectedAddress } = useCustomerAuth();
+  const { user, switchCustomer, selectedAddress, updateCustomerPhoto } = useCustomerAuth();
   const { currentMarket } = useCustomerMarket();
   const { language, setLanguage, t } = useCustomerLanguage();
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [isCustomerSwitcherOpen, setIsCustomerSwitcherOpen] = useState(false);
   const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
+
+  // Photo Management States
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isCoverModalOpen, setIsCoverModalOpen] = useState(false);
+  const [profilePopping, setProfilePopping] = useState(false);
+  const [coverPopping, setCoverPopping] = useState(false);
+
+  useEffect(() => {
+    setProfilePopping(true);
+    const t = setTimeout(() => setProfilePopping(false), 600);
+    return () => clearTimeout(t);
+  }, [user?.profilePhotoUrl, user?.avatarUrl]);
+
+  useEffect(() => {
+    setCoverPopping(true);
+    const t = setTimeout(() => setCoverPopping(false), 600);
+    return () => clearTimeout(t);
+  }, [user?.coverPhotoUrl]);
 
   const faqs = [
     {
@@ -90,38 +113,105 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
 
   return (
     <div className="space-y-4 p-4 pb-32 bg-white min-h-screen">
-      {/* 1. Top Profile Card Matching Reference */}
-      <div className="bg-emerald-600 text-white rounded-3xl p-4 shadow-sm space-y-3">
-        <div className="flex items-center gap-3">
-          {/* Avatar */}
-          <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/30 overflow-hidden flex items-center justify-center shrink-0">
-            {user?.avatarUrl && user.avatarUrl.trim() !== '' ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.fullName}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <User className="w-6 h-6 text-white" />
-            )}
+      {/* 1. Top Profile Card with Cover Photo & Profile Photo Management */}
+      <div className="rounded-3xl overflow-hidden shadow-md border border-slate-200 bg-white space-y-0">
+        {/* Cover Photo Container with Subtle Pop Animation */}
+        <motion.div
+          animate={coverPopping ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+          transition={{ duration: 0.45 }}
+          className="relative h-28 sm:h-36 w-full overflow-hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800"
+        >
+          {user?.coverPhotoUrl && user.coverPhotoUrl.trim() !== '' ? (
+            <img
+              src={user.coverPhotoUrl}
+              alt="Profile Cover"
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center opacity-30">
+              <ImageIcon className="w-12 h-12 text-white" />
+            </div>
+          )}
+
+          {/* Change Cover Photo Button */}
+          <button
+            type="button"
+            onClick={() => setIsCoverModalOpen(true)}
+            className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-xs text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            <span>{language === 'hi' ? 'कवर फोटो बदलें' : 'Edit Cover'}</span>
+          </button>
+        </motion.div>
+
+        {/* Profile Details & Avatar Card */}
+        <div className="p-4 pt-0 -mt-10 sm:-mt-12 bg-white rounded-b-3xl space-y-3">
+          <div className="flex items-end justify-between">
+            {/* Avatar Container with Pop Animation and Camera Badge */}
+            <div className="relative">
+              <motion.div
+                animate={profilePopping ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                transition={{ duration: 0.45 }}
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white p-1 border-2 border-emerald-500 shadow-md cursor-pointer group overflow-hidden"
+              >
+                <div className="w-full h-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center relative">
+                  {user?.profilePhotoUrl || (user?.avatarUrl && user.avatarUrl.trim() !== '') ? (
+                    <img
+                      src={user?.profilePhotoUrl || user?.avatarUrl}
+                      alt={user?.fullName || 'Profile'}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <User className="w-8 h-8 text-slate-400" />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Tap Badge */}
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-md border-2 border-white transition-transform active:scale-95 cursor-pointer"
+                title="फोटो बदलें"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Quick Action Chips */}
+            <div className="flex items-center gap-1.5 pb-1">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold transition-colors flex items-center gap-1"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>{language === 'hi' ? 'फोटो बदलें' : 'Change Photo'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div>
             <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-black text-white truncate">
+              <h1 className="text-base font-black text-slate-900 truncate">
                 {user?.fullName || 'Rahul Sharma'}
               </h1>
-              <span className="px-1.5 py-0.2 rounded bg-white/20 text-white text-[9px] font-bold shrink-0">
+              <span className="px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
                 Verified
               </span>
             </div>
-            <div className="text-xs text-emerald-100 flex items-center gap-1 mt-0.5 font-medium">
-              <Phone className="w-3 h-3 text-emerald-200" />
+            <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
+              <Phone className="w-3 h-3 text-slate-400" />
               <span>{user?.phone || '+91 98201 23456'}</span>
             </div>
-            <div className="text-[11px] text-emerald-100 flex items-center gap-1 mt-0.5">
-              <MapPin className="w-3 h-3 text-emerald-200 shrink-0" />
+            <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
               <span className="truncate">
                 {selectedAddress
                   ? `${selectedAddress.area || selectedAddress.streetAddress}, Mumbai`
@@ -129,56 +219,56 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
               </span>
             </div>
           </div>
-        </div>
 
-        {/* Quick Demo Switcher Accordion */}
-        <div className="pt-2 border-t border-white/20">
-          <button
-            type="button"
-            onClick={() => setIsCustomerSwitcherOpen(!isCustomerSwitcherOpen)}
-            className="w-full flex items-center justify-between text-xs font-bold text-white hover:text-emerald-100 transition-colors"
-          >
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>{language === 'hi' ? 'डेमो ग्राहक खाता बदलें' : 'Switch Demo Customer Account'}</span>
-            </div>
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${
-                isCustomerSwitcherOpen ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
+          {/* Quick Demo Switcher Accordion */}
+          <div className="pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsCustomerSwitcherOpen(!isCustomerSwitcherOpen)}
+              className="w-full flex items-center justify-between text-xs font-bold text-slate-700 hover:text-emerald-700 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>{language === 'hi' ? 'डेमो ग्राहक खाता बदलें' : 'Switch Demo Customer Account'}</span>
+              </div>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  isCustomerSwitcherOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
 
-          {isCustomerSwitcherOpen && (
-            <div className="grid grid-cols-1 gap-1.5 mt-2 pt-2 border-t border-white/20">
-              {DEMO_CUSTOMERS.map((cust) => {
-                const isSelected = cust.id === user?.id;
-                return (
-                  <button
-                    key={cust.id}
-                    type="button"
-                    onClick={() => {
-                      switchCustomer(cust.id);
-                      setIsCustomerSwitcherOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
-                      isSelected
-                        ? 'bg-white text-emerald-900 font-bold shadow-xs'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    <div className="truncate">
-                      <div className="text-xs">{cust.fullName}</div>
-                      <div className={`text-[10px] ${isSelected ? 'text-emerald-700' : 'text-emerald-200'}`}>
-                        {cust.phone}
+            {isCustomerSwitcherOpen && (
+              <div className="grid grid-cols-1 gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                {DEMO_CUSTOMERS.map((cust) => {
+                  const isSelected = cust.id === user?.id;
+                  return (
+                    <button
+                      key={cust.id}
+                      type="button"
+                      onClick={() => {
+                        switchCustomer(cust.id);
+                        setIsCustomerSwitcherOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
+                        isSelected
+                          ? 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-200'
+                          : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="truncate">
+                        <div className="text-xs">{cust.fullName}</div>
+                        <div className={`text-[10px] ${isSelected ? 'text-emerald-700' : 'text-slate-500'}`}>
+                          {cust.phone}
+                        </div>
                       </div>
-                    </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-900" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                      {isSelected && <Check className="w-3.5 h-3.5 text-emerald-700" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,6 +429,40 @@ export const CustomerProfileScreen: React.FC<CustomerProfileScreenProps> = ({
       <AddressSelectionModal
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}
+      />
+
+      {/* Customer Profile Photo Manager Modal */}
+      <PhotoManagerModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        type="profile"
+        currentPhotoUrl={user?.profilePhotoUrl || user?.avatarUrl}
+        targetName={user?.fullName || 'ग्राहक'}
+        onConfirm={async (result) => {
+          await updateCustomerPhoto({
+            type: 'profile',
+            action: result.action,
+            url: result.url,
+            imageData: result.imageData,
+          });
+        }}
+      />
+
+      {/* Customer Cover Photo Manager Modal */}
+      <PhotoManagerModal
+        isOpen={isCoverModalOpen}
+        onClose={() => setIsCoverModalOpen(false)}
+        type="cover"
+        currentPhotoUrl={user?.coverPhotoUrl}
+        targetName={user?.fullName || 'ग्राहक'}
+        onConfirm={async (result) => {
+          await updateCustomerPhoto({
+            type: 'cover',
+            action: result.action,
+            url: result.url,
+            imageData: result.imageData,
+          });
+        }}
       />
     </div>
   );

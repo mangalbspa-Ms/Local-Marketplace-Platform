@@ -11,13 +11,19 @@ export enum UserRole {
 
 export interface UserAddress {
   id: string;
-  tag: 'Home' | 'Work' | 'Other';
-  recipientName: string;
-  recipientPhone: string;
-  addressLine1: string;
+  tag?: 'Home' | 'Work' | 'Other' | string;
+  label?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  addressLine1?: string;
+  streetAddress?: string;
   addressLine2?: string;
   landmark?: string;
+  area?: string;
   city: string;
+  state?: string;
+  district?: string;
+  postOffice?: string;
   pincode: string;
   coordinates?: {
     lat: number;
@@ -33,6 +39,8 @@ export interface User {
   fullName: string;
   role: UserRole;
   avatarUrl?: string;
+  profilePhotoUrl?: string; // Dedicated Profile Photo URL
+  coverPhotoUrl?: string; // Dedicated Cover Photo URL
   shopId?: string; // Assigned if role === UserRole.SELLER
   deliveryVehicleType?: 'BICYCLE' | 'MOTORBIKE' | 'SCOOTER' | 'VAN'; // If role === DELIVERY_PERSON
   addresses: UserAddress[];

@@ -5,9 +5,13 @@
  * Designed with modern light marketplace aesthetics, emerald accents, and crisp typography.
  */
 
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { useCustomerCart } from '../../../context/CustomerCartContext.tsx';
+import { useCustomerMarket } from '../../../context/CustomerMarketContext.tsx';
+import { Shop } from '../../../types/market.ts';
+import { findMatchingShop } from '../voice/shopVoiceMatcher.ts';
+import { createSpeechRecognition, requestMicrophonePermission } from '../../../utils/speechRecognitionHelper.ts';
 import { Store, Search, ShoppingBag, Receipt, Mic, User } from 'lucide-react';
 
 export type CustomerTab = 'home' | 'search' | 'voice' | 'cart' | 'orders' | 'profile';
@@ -17,6 +21,8 @@ interface CustomerBottomNavProps {
   onSelectTab: (tab: CustomerTab) => void;
   onOpenVoice?: () => void;
   activeOrdersCount?: number;
+  onSelectShop?: (shop: Shop) => void;
+  onOpenSearch?: (query?: string) => void;
 }
 
 export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
@@ -24,9 +30,190 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
   onSelectTab,
   onOpenVoice,
   activeOrdersCount = 0,
+  onSelectShop,
+  onOpenSearch,
 }) => {
   const { language } = useCustomerLanguage();
   const { itemCount, itemSubtotal, shop: cartShop } = useCustomerCart();
+  const { shops } = useCustomerMarket();
+
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [hasStartedSpeaking, setHasStartedSpeaking] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState('');
+
+  const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>('');
+  const silenceTimerRef = useRef<any>(null);
+
+  const stopVoiceSession = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+    setIsVoiceActive(false);
+    setHasStartedSpeaking(false);
+  }, []);
+
+  const handleVoiceTap = useCallback(async () => {
+    // If voice is currently active, tapping again cancels it
+    if (isVoiceActive) {
+      stopVoiceSession();
+      setLiveTranscript('');
+      return;
+    }
+
+    stopVoiceSession();
+
+    const permResult = await requestMicrophonePermission();
+    if (!permResult.granted) {
+      if (onOpenVoice) {
+        onOpenVoice();
+      }
+      return;
+    }
+
+    try {
+      const recognition = createSpeechRecognition();
+      if (!recognition) {
+        // Fallback if SpeechRecognition is not available
+        if (onOpenSearch) {
+          onOpenSearch('');
+        } else if (onOpenVoice) {
+          onOpenVoice();
+        }
+        return;
+      }
+
+      setIsVoiceActive(true);
+      setHasStartedSpeaking(false);
+      setLiveTranscript('');
+      transcriptRef.current = '';
+
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
+
+      // Safety timeout: 10s if no speech occurs
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => {
+        stopVoiceSession();
+        setLiveTranscript('');
+      }, 10000);
+
+      recognition.onstart = () => {
+        setIsVoiceActive(true);
+        setHasStartedSpeaking(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        let interim = '';
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            final += item[0].transcript;
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+        const currentText = (final || interim || '').trim();
+        if (currentText) {
+          setHasStartedSpeaking(true);
+          setLiveTranscript(currentText);
+          transcriptRef.current = currentText;
+
+          if (final) {
+            const matchedShop = findMatchingShop(final.trim(), shops);
+            if (matchedShop && onSelectShop) {
+              stopVoiceSession();
+              setLiveTranscript('');
+              onSelectShop(matchedShop);
+              return;
+            }
+          }
+
+          // Automatically stop after user pauses speaking for 2.2s
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.stop();
+              } catch {
+                // ignore
+              }
+            }
+          }, 2200);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Voice recognition error:', event?.error);
+        if (event?.error !== 'no-speech') {
+          stopVoiceSession();
+          setLiveTranscript('');
+        }
+      };
+
+      recognition.onend = () => {
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+        recognitionRef.current = null;
+        setIsVoiceActive(false);
+        setHasStartedSpeaking(false);
+
+        const finalText = transcriptRef.current.trim();
+        setLiveTranscript('');
+
+        if (finalText) {
+          // Check for seller / shop name first
+          const matchedShop = findMatchingShop(finalText, shops);
+          if (matchedShop && onSelectShop) {
+            onSelectShop(matchedShop);
+          } else if (onOpenSearch) {
+            onOpenSearch(finalText);
+          } else if (onOpenVoice) {
+            onOpenVoice();
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start voice recognition', err);
+      stopVoiceSession();
+      setLiveTranscript('');
+    }
+  }, [isVoiceActive, language, onOpenSearch, onOpenVoice, onSelectShop, shops, stopVoiceSession]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      stopVoiceSession();
+    };
+  }, [stopVoiceSession]);
+
+  // If user switches tab, cancel voice session
+  useEffect(() => {
+    if (isVoiceActive) {
+      stopVoiceSession();
+      setLiveTranscript('');
+    }
+  }, [currentTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabs: Array<{
     id: CustomerTab;
@@ -50,8 +237,8 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
     },
     {
       id: 'voice',
-      labelEn: 'Voice',
-      labelHi: 'आवाज़',
+      labelEn: 'Voice Search',
+      labelHi: 'बोलकर खोजें',
       icon: Mic,
       isSpecialVoice: true,
     },
@@ -111,25 +298,52 @@ export const CustomerBottomNav: React.FC<CustomerBottomNavProps> = ({
 
             if (tab.isSpecialVoice) {
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (onOpenVoice) {
-                      onOpenVoice();
-                    } else {
-                      onSelectTab('voice');
+                <div key={tab.id} className="relative -top-3.5 flex flex-col items-center justify-center">
+                  {/* Floating Voice Status Pill right above mic */}
+                  {isVoiceActive && (
+                    <div
+                      id="bottom-voice-status-popup"
+                      className="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-3.5 py-1.5 rounded-2xl shadow-xl flex flex-col items-center max-w-[280px] z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150 border border-slate-700/60"
+                    >
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 whitespace-nowrap">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span>{hasStartedSpeaking ? 'Listening…' : 'Speak now'}</span>
+                      </div>
+                      {liveTranscript ? (
+                        <div className="text-[11px] text-slate-200 truncate max-w-[240px] font-medium mt-0.5">
+                          “{liveTranscript}”
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleVoiceTap}
+                    className="relative flex flex-col items-center justify-center group focus:outline-hidden"
+                    id="bottom-nav-voice-search-btn"
+                    aria-label={
+                      isVoiceActive
+                        ? (hasStartedSpeaking ? 'Listening…' : 'Speak now')
+                        : (language === 'hi' ? tab.labelHi : tab.labelEn)
                     }
-                  }}
-                  className="relative -top-3.5 flex flex-col items-center justify-center group"
-                >
-                  <div className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center text-white shadow-lg shadow-emerald-600/30 group-hover:scale-105 transition-transform ring-4 ring-white">
-                    <Mic className="w-5 h-5 text-white stroke-[2.2px]" />
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-700 mt-0.5 tracking-tight">
-                    {language === 'hi' ? tab.labelHi : tab.labelEn}
-                  </span>
-                </button>
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white transition-all ${
+                        isVoiceActive
+                          ? 'bg-emerald-600 shadow-lg shadow-emerald-600/40 ring-4 ring-emerald-300 animate-pulse scale-105'
+                          : 'bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/30 group-hover:scale-105 ring-4 ring-white'
+                      }`}
+                    >
+                      <Mic className="w-5 h-5 text-white stroke-[2.2px]" />
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 mt-0.5 tracking-tight whitespace-nowrap">
+                      {isVoiceActive
+                        ? (hasStartedSpeaking ? 'Listening…' : 'Speak now')
+                        : (language === 'hi' ? tab.labelHi : tab.labelEn)}
+                    </span>
+                  </button>
+                </div>
               );
             }
 

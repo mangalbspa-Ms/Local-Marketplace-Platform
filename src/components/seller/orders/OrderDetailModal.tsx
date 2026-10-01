@@ -26,7 +26,9 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { Order, OrderStatus, FulfillmentType, OrderItem } from '../../../types/order.ts';
+import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
+import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface OrderDetailModalProps {
@@ -110,10 +112,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     });
 
     const adjSubtotal = Math.max(0, origSubtotal - refund);
-    const adjCustomerTotal = Math.max(
-      0,
-      adjSubtotal + (order.financials.deliveryFee || 0) + (order.financials.platformFee || 0)
-    );
+    const adjCustomerTotal = calculateOrderTotal(order, { items: avail });
     const commissionPercent = order.financials.commissionPercentage || 5;
     const adjCommission = (adjSubtotal * commissionPercent) / 100;
     const adjSellerNet = Math.max(0, adjSubtotal - adjCommission);
@@ -176,6 +175,8 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
         return { bg: 'bg-teal-50 border-teal-200 text-teal-800', text: t('status.READY_FOR_PICKUP') };
       case OrderStatus.OUT_FOR_DELIVERY:
         return { bg: 'bg-indigo-50 border-indigo-200 text-indigo-800', text: t('status.OUT_FOR_DELIVERY') };
+      case OrderStatus.ARRIVED:
+        return { bg: 'bg-purple-50 border-purple-200 text-purple-800', text: language === 'hi' ? 'पहुंच गया' : 'Arrived' };
       case OrderStatus.COMPLETED:
         return { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', text: t('status.COMPLETED') };
       case OrderStatus.CANCELLED:
@@ -199,9 +200,12 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-mono font-black text-base text-slate-900">{order.orderNumber}</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusBadge.bg}`}>
-                {statusBadge.text}
-              </span>
+              <OrderStatusBadge
+                status={order.status}
+                variant="light"
+                size="sm"
+                customLabel={statusBadge.text}
+              />
             </div>
             <div className="text-xs text-slate-500 mt-0.5">
               {new Date(order.createdAt).toLocaleString([], {
@@ -630,10 +634,39 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
           )}
 
           {order.status === OrderStatus.OUT_FOR_DELIVERY && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange(OrderStatus.ARRIVED, 'Delivery partner arrived at doorstep')}
+                className="py-2.5 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-xs font-bold flex items-center justify-center space-x-1 transition-all"
+              >
+                <MapPin className="w-4 h-4" />
+                <span>{language === 'hi' ? 'पते पर पहुंचे (Arrived)' : 'Arrived at Address'}</span>
+              </button>
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => handleStatusChange(OrderStatus.COMPLETED, 'Delivered to customer address')}
+                className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm flex items-center justify-center space-x-1 transition-all"
+              >
+                {isUpdating ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{language === 'hi' ? 'डिलीवर हुआ (Delivered)' : 'Delivered'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {order.status === OrderStatus.ARRIVED && (
             <button
               type="button"
               disabled={isUpdating}
-              onClick={() => handleStatusChange(OrderStatus.COMPLETED, 'Delivered to customer address')}
+              onClick={() => handleStatusChange(OrderStatus.COMPLETED, 'Handover completed successfully')}
               className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm flex items-center justify-center space-x-1.5 transition-all"
             >
               {isUpdating ? (
@@ -641,7 +674,7 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{language === 'hi' ? 'डिलीवर हो गया (Mark as Delivered)' : 'Mark as Delivered'}</span>
+                  <span>{language === 'hi' ? 'हैंडओवर / डिलीवरी पूर्ण करें (Complete Order)' : 'Complete Order Handover'}</span>
                 </>
               )}
             </button>

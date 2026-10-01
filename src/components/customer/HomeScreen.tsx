@@ -41,6 +41,7 @@ import {
 interface HomeScreenProps {
   onSelectShop: (shop: Shop) => void;
   onOpenSearch: (initialQuery?: string) => void;
+  onOpenAllNearbyShops?: () => void;
   onOpenVoiceAssistant?: () => void;
   onOpenNotifications?: () => void;
   onOpenProfile?: () => void;
@@ -70,7 +71,7 @@ const TODAYS_OFFERS: Array<{
   {
     product: {
       id: 'deal_tomato',
-      shopId: 'shop_veggies_1',
+      shopId: 'shp_green_harvest',
       name: 'Fresh Farm Tomatoes (ताजा टमाटर)',
       nameHindi: 'ताज़ा टमाटर',
       description: 'Plump and ripe juicy farm tomatoes',
@@ -97,14 +98,14 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Shree Ganesh Fresh Veggies',
+    shopName: 'Green Harvest Fresh Farm Produce',
     discountBadge: '20% OFF',
     strikePrice: 30,
   },
   {
     product: {
       id: 'deal_potato',
-      shopId: 'shop_veggies_1',
+      shopId: 'shp_green_harvest',
       name: 'Fresh Potatoes (आलू)',
       nameHindi: 'ताज़ा आलू',
       description: 'Clean medium size fresh potatoes',
@@ -131,14 +132,14 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Shree Ganesh Fresh Veggies',
+    shopName: 'Green Harvest Fresh Farm Produce',
     discountBadge: '21% OFF',
     strikePrice: 28,
   },
   {
     product: {
       id: 'deal_coriander',
-      shopId: 'shop_veggies_1',
+      shopId: 'shp_green_harvest',
       name: 'Fresh Coriander Bunch (ताज़ा हरा धनिया)',
       nameHindi: 'ताज़ा हरा धनिया',
       description: 'Aromatic farm-fresh green coriander',
@@ -164,14 +165,14 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Shree Ganesh Fresh Veggies',
+    shopName: 'Green Harvest Fresh Farm Produce',
     discountBadge: '25% OFF',
     strikePrice: 20,
   },
   {
     product: {
       id: 'deal_paneer',
-      shopId: 'shop_dairy_1',
+      shopId: 'shp_city_dairy',
       name: 'Fresh Malai Paneer (ताजा मलाई पनीर)',
       nameHindi: 'ताज़ा मलाई पनीर',
       description: 'Soft cottage cheese made from pure buffalo milk',
@@ -198,14 +199,14 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Gokul Pure Dairy',
+    shopName: 'City Dairy, Paneer & Sweets',
     discountBadge: '14% OFF',
     strikePrice: 110,
   },
   {
     product: {
       id: 'deal_onion',
-      shopId: 'shop_veggies_1',
+      shopId: 'shp_green_harvest',
       name: 'Nashik Red Onions (नासिक प्याज)',
       nameHindi: 'नासिक लाल प्याज',
       description: 'Crisp and pungent red onions',
@@ -232,14 +233,14 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Shree Ganesh Fresh Veggies',
+    shopName: 'Green Harvest Fresh Farm Produce',
     discountBadge: '20% OFF',
     strikePrice: 35,
   },
   {
     product: {
       id: 'deal_basmati',
-      shopId: 'shop_kirana_1',
+      shopId: 'shp_krishna_grocers',
       name: 'Daawat Rozana Basmati Rice (बासमती चावल)',
       nameHindi: 'दावत रोजाना बासमती चावल',
       description: 'Fragrant long grain basmati rice',
@@ -265,7 +266,7 @@ const TODAYS_OFFERS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Manish Kirana Store',
+    shopName: 'Shree Krishna Kirana & Grains',
     discountBadge: '12% OFF',
     strikePrice: 125,
   },
@@ -280,7 +281,7 @@ const POPULAR_TRENDING_ITEMS: Array<{
   {
     product: {
       id: 'pop_amul_milk',
-      shopId: 'shop_dairy_1',
+      shopId: 'shp_city_dairy',
       name: 'Amul Taaza Homogenised Toned Milk 1L',
       nameHindi: 'अमूल ताज़ा टोन्ड दूध 1 लीटर',
       description: 'Pasteurised toned milk with 3.0% fat',
@@ -303,13 +304,13 @@ const POPULAR_TRENDING_ITEMS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Gokul Pure Dairy',
+    shopName: 'City Dairy, Paneer & Sweets',
     strikePrice: 70,
   },
   {
     product: {
       id: 'pop_amul_butter',
-      shopId: 'shop_dairy_1',
+      shopId: 'shp_city_dairy',
       name: 'Amul Pasteurised Butter 100g',
       nameHindi: 'अमूल मक्खन 100g',
       description: 'Utterly butterly delicious fresh table butter',
@@ -332,13 +333,13 @@ const POPULAR_TRENDING_ITEMS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Gokul Pure Dairy',
+    shopName: 'City Dairy, Paneer & Sweets',
     strikePrice: 62,
   },
   {
     product: {
       id: 'pop_aloo',
-      shopId: 'shop_veggies_1',
+      shopId: 'shp_green_harvest',
       name: 'Fresh New Harvest Potatoes (आलू)',
       nameHindi: 'ताजा पहाड़ी आलू',
       description: 'Firm and smooth potatoes for daily cooking',
@@ -365,13 +366,13 @@ const POPULAR_TRENDING_ITEMS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Shree Ganesh Fresh Veggies',
+    shopName: 'Green Harvest Fresh Farm Produce',
     strikePrice: 35,
   },
   {
     product: {
       id: 'pop_fortune_oil',
-      shopId: 'shop_kirana_1',
+      shopId: 'shp_krishna_grocers',
       name: 'Fortune Sunlite Refined Sunflower Oil 1L',
       nameHindi: 'फॉर्च्यून रिफाइंड सनफ्लावर तेल 1L',
       description: 'Light and healthy sunflower cooking oil',
@@ -394,7 +395,7 @@ const POPULAR_TRENDING_ITEMS: Array<{
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
-    shopName: 'Laxmi Super Kirana',
+    shopName: 'Shree Krishna Kirana & Grains',
     strikePrice: 165,
   },
 ];
@@ -402,6 +403,7 @@ const POPULAR_TRENDING_ITEMS: Array<{
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectShop,
   onOpenSearch,
+  onOpenAllNearbyShops,
   onOpenVoiceAssistant,
   onOpenNotifications,
   onOpenProfile,
@@ -562,6 +564,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {onOpenVoiceAssistant && (
               <button
                 type="button"
+                id="home-voice-search-btn"
                 onClick={onOpenVoiceAssistant}
                 className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center absolute right-1.5 transition-colors border border-emerald-200"
                 title="Voice Search"
@@ -572,31 +575,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         </form>
       </div>
-
-      {/* 3. Compact Voice Order Area with Centered Circular Mic Button */}
-      {onOpenVoiceAssistant && (
-        <div className="px-4">
-          <div
-            onClick={onOpenVoiceAssistant}
-            className="bg-gradient-to-b from-emerald-50 to-white border border-emerald-200 hover:border-emerald-400 rounded-2xl p-3.5 flex flex-col items-center text-center cursor-pointer shadow-xs hover:shadow-md transition-all group"
-          >
-            {/* Centered Large Attractive Circular Mic Button */}
-            <div className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 flex items-center justify-center text-white shadow-md shadow-emerald-600/30 group-hover:scale-110 transition-transform ring-4 ring-emerald-100">
-              <Mic className="w-6 h-6 animate-pulse" />
-            </div>
-
-            <div className="mt-2 text-xs font-black text-slate-900">
-              {language === 'hi' ? 'बोलकर ऑर्डर करें या दुकान सर्च करें' : 'Order by Voice or Search Shops'}
-            </div>
-
-            <div className="mt-0.5 text-[11px] text-slate-500 font-medium max-w-[280px]">
-              {language === 'hi'
-                ? "जैसे बोलें: 'मनीष किराना स्टोर से ₹10 का साबुन और ₹25 का मसाला चाहिए'"
-                : "e.g. '1 kg tomatoes, 500g paneer and soap from Manish Kirana'"}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 4. "श्रेणियां" (Categories Chips) */}
       <div className="space-y-2">
@@ -647,9 +625,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {filteredShops.length} {language === 'hi' ? 'दुकानें' : 'shops'}
             </span>
             <button
+              id="btn-view-all-nearby-shops"
               type="button"
-              onClick={() => onOpenSearch()}
-              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800"
+              onClick={() => {
+                if (onOpenAllNearbyShops) {
+                  onOpenAllNearbyShops();
+                } else {
+                  onOpenSearch();
+                }
+              }}
+              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 cursor-pointer"
             >
               {language === 'hi' ? 'सभी देखें →' : 'View All →'}
             </button>
@@ -754,7 +739,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         ? deal.product.nameHindi
                         : deal.product.name}
                     </h3>
-                    <p className="text-[10px] text-slate-500 truncate">{deal.shopName}</p>
+                    <p
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const parentShop =
+                          shops.find((s) => s.id === deal.product.shopId || (s as any).shopId === deal.product.shopId) ||
+                          (deal.shopName ? shops.find((s) => (s?.name || '').toLowerCase().includes(deal.shopName.toLowerCase())) : undefined);
+                        if (parentShop && onSelectShop) {
+                          onSelectShop(parentShop);
+                        }
+                      }}
+                      className="text-[10px] text-slate-500 truncate cursor-pointer hover:text-emerald-700 hover:underline"
+                    >
+                      {deal.shopName}
+                    </p>
                     <p className="text-[10px] text-emerald-700 font-medium">{portionText}</p>
                   </div>
                 </div>
@@ -860,7 +858,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     >
                       {language === 'hi' && item.product.nameHindi ? item.product.nameHindi : item.product.name}
                     </h3>
-                    <p className="text-[10px] text-slate-500 truncate">{item.shopName}</p>
+                    <p
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const parentShop =
+                          shops.find((s) => s.id === item.product.shopId || (s as any).shopId === item.product.shopId) ||
+                          (item.shopName ? shops.find((s) => (s?.name || '').toLowerCase().includes(item.shopName.toLowerCase())) : undefined);
+                        if (parentShop && onSelectShop) {
+                          onSelectShop(parentShop);
+                        }
+                      }}
+                      className="text-[10px] text-slate-500 truncate cursor-pointer hover:text-emerald-700 hover:underline"
+                    >
+                      {item.shopName}
+                    </p>
                     <p className="text-[10px] text-emerald-700 font-medium">{portionText}</p>
                   </div>
                 </div>

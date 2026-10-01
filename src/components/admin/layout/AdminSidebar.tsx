@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { useAdminPreferences } from '../../../context/AdminPreferencesContext.tsx';
 import {
   LayoutDashboard,
   MapPin,
@@ -65,43 +66,45 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   openTicketsCount = 0,
   pendingSettlementsCount = 0,
   activeOrdersCount = 0,
-}) => {
+ }) => {
+  const { t, language } = useAdminPreferences();
+
   const navGroups = [
     {
-      title: 'DASHBOARD & OPERATIONS',
+      title: language === 'hi' ? 'डैशबोर्ड और संचालन' : 'DASHBOARD & OPERATIONS',
       items: [
-        { id: 'overview', label: 'Platform Overview', icon: LayoutDashboard },
-        { id: 'orders', label: 'Master Orders', icon: ShoppingBag, badge: activeOrdersCount > 0 ? activeOrdersCount : undefined, badgeColor: 'bg-emerald-500 text-slate-950' },
-        { id: 'payments', label: 'Payment Monitor', icon: CreditCard },
+        { id: 'overview', label: t('nav.overview', 'Platform Overview'), icon: LayoutDashboard },
+        { id: 'orders', label: t('nav.orders', 'Master Orders'), icon: ShoppingBag, badge: activeOrdersCount > 0 ? activeOrdersCount : undefined, badgeColor: 'bg-emerald-500 text-slate-950' },
+        { id: 'payments', label: t('nav.payments', 'Payment Monitor'), icon: CreditCard },
       ],
     },
     {
-      title: 'MARKETPLACE DIRECTORY',
+      title: language === 'hi' ? 'मार्केटप्लेस डायरेक्टरी' : 'MARKETPLACE DIRECTORY',
       items: [
-        { id: 'onboard', label: '⚡ Quick Shop Setup', icon: UserPlus, badge: 'New', badgeColor: 'bg-emerald-500 text-slate-950 font-black' },
-        { id: 'markets', label: 'Local Markets', icon: MapPin },
-        { id: 'shops', label: 'दुकानदार / दुकानें', icon: Store, badge: pendingShopsCount > 0 ? `${pendingShopsCount} New` : undefined, badgeColor: 'bg-amber-500 text-slate-950' },
-        { id: 'master-catalog', label: 'Master Catalogue', icon: BookOpen, badge: 'Central', badgeColor: 'bg-indigo-500 text-white font-semibold' },
-        { id: 'sellers', label: 'Seller Accounts', icon: Users },
-        { id: 'customers', label: 'Customer Directory', icon: UserCheck },
-        { id: 'products', label: 'All Shop Products', icon: Package },
+        { id: 'onboard', label: t('nav.onboard', '⚡ Quick Shop Setup'), icon: UserPlus, badge: language === 'hi' ? 'नया' : 'New', badgeColor: 'bg-emerald-500 text-slate-950 font-black' },
+        { id: 'markets', label: t('nav.markets', 'Local Markets'), icon: MapPin },
+        { id: 'shops', label: t('nav.shops', 'दुकानें और कैटलॉग'), icon: Store, badge: pendingShopsCount > 0 ? `${pendingShopsCount} ${language === 'hi' ? 'नई' : 'New'}` : undefined, badgeColor: 'bg-amber-500 text-slate-950' },
+        { id: 'master-catalog', label: t('nav.masterCatalog', 'Master Catalogue'), icon: BookOpen, badge: language === 'hi' ? 'सेंट्रल' : 'Central', badgeColor: 'bg-indigo-500 text-white font-semibold' },
+        { id: 'sellers', label: t('nav.sellers', 'Seller Accounts'), icon: Users },
+        { id: 'customers', label: t('nav.customers', 'Customer Directory'), icon: UserCheck },
+        { id: 'products', label: t('nav.products', 'All Shop Products'), icon: Package },
       ],
     },
     {
-      title: 'FINANCIALS & REVENUE',
+      title: language === 'hi' ? 'वित्तीय और राजस्व' : 'FINANCIALS & REVENUE',
       items: [
-        { id: 'commissions', label: 'Commission Engine', icon: Percent },
-        { id: 'subscriptions', label: 'Subscriptions & Plans', icon: Zap },
-        { id: 'settlements', label: 'Seller Settlements', icon: Banknote, badge: pendingSettlementsCount > 0 ? pendingSettlementsCount : undefined, badgeColor: 'bg-indigo-500 text-white' },
-        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
+        { id: 'commissions', label: t('nav.commissions', 'Commission Engine'), icon: Percent },
+        { id: 'subscriptions', label: t('nav.subscriptions', 'Subscriptions & Plans'), icon: Zap },
+        { id: 'settlements', label: t('nav.settlements', 'Seller Settlements'), icon: Banknote, badge: pendingSettlementsCount > 0 ? pendingSettlementsCount : undefined, badgeColor: 'bg-indigo-500 text-white' },
+        { id: 'reports', label: t('nav.reports', 'Reports & Analytics'), icon: BarChart3 },
       ],
     },
     {
-      title: 'GOVERNANCE & SYSTEM',
+      title: language === 'hi' ? 'गवर्नेंस और सिस्टम' : 'GOVERNANCE & SYSTEM',
       items: [
-        { id: 'support', label: 'Support & Disputes', icon: HelpCircle, badge: openTicketsCount > 0 ? openTicketsCount : undefined, badgeColor: 'bg-rose-500 text-white' },
-        { id: 'audit', label: 'Audit Trail Logs', icon: History },
-        { id: 'settings', label: 'System Settings', icon: Settings },
+        { id: 'support', label: t('nav.support', 'Support & Disputes'), icon: HelpCircle, badge: openTicketsCount > 0 ? openTicketsCount : undefined, badgeColor: 'bg-rose-500 text-white' },
+        { id: 'audit', label: t('nav.audit', 'Audit Trail Logs'), icon: History },
+        { id: 'settings', label: t('nav.settings', 'System Settings'), icon: Settings },
       ],
     },
   ];

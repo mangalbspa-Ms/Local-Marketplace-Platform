@@ -5,6 +5,7 @@
  */
 
 import { EXTENDED_KIRANA_CATALOG } from './extendedCatalog';
+import { INDIAN_MARKET_CATALOG } from './indianMarketCatalog';
 
 export interface KiranaMasterProduct {
   id: string;
@@ -775,11 +776,11 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     id: 'prod_tejpatta',
     category: 'मसाले / साबुत मसाले / मसाला पैक',
     subcategory: 'तेजपत्ता',
-    canonicalNameHindi: 'तेजपत्ता',
+    canonicalNameHindi: 'तेज पत्ता',
     canonicalNameEnglish: 'Bay Leaf / Tejpatta',
-    searchableAliases: ['तेजपत्ता', 'तेज पत्ता', 'tejpatta', 'bay leaf'],
-    commonSpokenNames: ['तेजपत्ता', 'tejpatta'],
-    awadhiHindiAliases: ['तेजपत्ता'],
+    searchableAliases: ['तेज पत्ता', 'तेजपत्ता', 'tejpatta', 'bay leaf'],
+    commonSpokenNames: ['तेज पत्ता', 'tejpatta'],
+    awadhiHindiAliases: ['तेज पत्ता'],
     defaultUnits: ['gram', 'packet'],
     supportedUnits: ['gram', 'packet'],
     supportsWeight: true,
@@ -793,7 +794,7 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     subcategory: 'गरम मसाला',
     canonicalNameHindi: 'गरम मसाला',
     canonicalNameEnglish: 'Garam Masala',
-    searchableAliases: ['गरम मसाला', 'खड़ा गरम मसाला', 'पिसा गरम मसाला', 'garam masala'],
+    searchableAliases: ['गरम मसाला', 'पिसा गरम मसाला', 'garam masala'],
     commonSpokenNames: ['गरम मसाला', 'garam masala'],
     awadhiHindiAliases: ['गरम मसाला'],
     defaultUnits: ['gram', 'packet'],
@@ -811,9 +812,27 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     canonicalNameEnglish: 'Rajesh Meat Masala',
     brand: 'Rajesh',
     brandAliases: ['rajesh', 'राजेश'],
-    searchableAliases: ['राजेश मीट मसाला', 'राजेश मसाला', 'rajesh meat masala', 'rajesh masala'],
-    commonSpokenNames: ['राजेश मीट मसाला', 'राजेश मसाला', 'rajesh meat masala'],
-    awadhiHindiAliases: ['राजेश मसाला', 'राजेश मीट मसाला'],
+    searchableAliases: ['राजेश मीट मसाला', 'rajesh meat masala', 'rajesh meet masala'],
+    commonSpokenNames: ['राजेश मीट मसाला', 'rajesh meat masala'],
+    awadhiHindiAliases: ['राजेश मीट मसाला'],
+    defaultUnits: ['packet', 'piece'],
+    supportedUnits: ['packet', 'piece'],
+    supportsWeight: false,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
+    isActive: true,
+  },
+  {
+    id: 'prod_rajesh_masala',
+    category: 'मसाले / साबुत मसाले / मसाला पैक',
+    subcategory: 'ब्रांडेड मसाला',
+    canonicalNameHindi: 'राजेश मसाला',
+    canonicalNameEnglish: 'Rajesh Masala',
+    brand: 'Rajesh',
+    brandAliases: ['rajesh', 'राजेश'],
+    searchableAliases: ['राजेश मसाला', 'rajesh masala', 'राजेश का मसाला', 'rajesh ka masala'],
+    commonSpokenNames: ['राजेश मसाला', 'rajesh masala'],
+    awadhiHindiAliases: ['राजेश मसाला'],
     defaultUnits: ['packet', 'piece'],
     supportedUnits: ['packet', 'piece'],
     supportsWeight: false,
@@ -1088,7 +1107,7 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     id: 'prod_mungfali',
     category: 'ड्राई फ्रूट / मेवा / बीज',
     subcategory: 'मूंगफली',
-    canonicalNameHindi: 'मूंगफली दाना',
+    canonicalNameHindi: 'मूंगफली',
     canonicalNameEnglish: 'Peanuts / Groundnuts',
     searchableAliases: ['मूंगफली', 'मूंगफली दाना', 'सींगदाना', 'peanut', 'groundnut', 'peanuts', 'mungfali', 'moongfali'],
     commonSpokenNames: ['मूंगफली', 'मूंगफली दाना', 'peanut'],
@@ -1122,9 +1141,9 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     subcategory: 'खजूर',
     canonicalNameHindi: 'खजूर',
     canonicalNameEnglish: 'Dates / Khajoor',
-    searchableAliases: ['खजूर', 'छुहारा', 'dates', 'khajoor', 'chhuhara'],
+    searchableAliases: ['खजूर', 'dates', 'khajoor'],
     commonSpokenNames: ['खजूर', 'khajoor'],
-    awadhiHindiAliases: ['खजूर', 'छोहारा'],
+    awadhiHindiAliases: ['खजूर'],
     defaultUnits: ['packet', 'gram'],
     supportedUnits: ['packet', 'gram', 'पाव'],
     supportsWeight: true,
@@ -2192,9 +2211,9 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     subcategory: 'प्याज',
     canonicalNameHindi: 'प्याज',
     canonicalNameEnglish: 'Onion / Pyaaz',
-    searchableAliases: ['प्याज', 'प्यास', 'कांदा', 'onion', 'pyaaz', 'onions', 'pyaz'],
-    commonSpokenNames: ['प्याज', 'pyaaz'],
-    awadhiHindiAliases: ['पियाज', 'प्याज', 'कांदा'],
+    searchableAliases: ['प्याज', 'प्यास', 'कांदा', 'onion', 'pyaaz', 'onions', 'pyaz', 'pyaj', 'piyaj'],
+    commonSpokenNames: ['प्याज', 'pyaaz', 'pyaj'],
+    awadhiHindiAliases: ['पियाज', 'प्याज', 'कांदा', 'pyaj'],
     defaultUnits: ['kg'],
     supportedUnits: ['kg', 'पाव'],
     supportsWeight: true,
@@ -2216,6 +2235,113 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     supportsWeight: true,
     supportsPieceQuantity: true,
     supportsPriceVariant: false,
+    isActive: true,
+  },
+  {
+    id: 'prod_hari_dhaniya',
+    category: 'अगर दुकान में उपलब्ध हो तो फल / सब्जियां',
+    subcategory: 'धनिया पत्ती',
+    canonicalNameHindi: 'हरा धनिया',
+    canonicalNameEnglish: 'Fresh Coriander / Hari Dhaniya',
+    searchableAliases: [
+      'हरा धनिया',
+      'हरी धनिया',
+      'धनिया पत्ती',
+      'धनिया पत्ता',
+      'हरी पत्ती धनिया',
+      'धनिया हरी पत्ती',
+      'hari dhaniya',
+      'hara dhaniya',
+      'dhaniya patti',
+      'hari patti dhaniya',
+      'hari dhaniya patti',
+      'dhaniya hari patti',
+      'fresh coriander',
+      'coriander leaves',
+      'kothmir',
+      'कोथमीर'
+    ],
+    commonSpokenNames: ['हरा धनिया', 'हरी धनिया', 'hari dhaniya', 'hara dhaniya', 'धनिया पत्ती', 'hari patti dhaniya', 'हरी पत्ती धनिया'],
+    awadhiHindiAliases: ['हरी धनिया', 'हरा धनिया', 'धनिया पत्ती', 'हरी पत्ती धनिया'],
+    defaultUnits: ['packet', 'gram'],
+    supportedUnits: ['packet', 'gram', 'पाव'],
+    supportsWeight: true,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
+    isActive: true,
+  },
+  {
+    id: 'prod_hari_mirch',
+    category: 'अगर दुकान में उपलब्ध हो तो फल / सब्जियां',
+    subcategory: 'हरी मिर्च',
+    canonicalNameHindi: 'हरी मिर्च',
+    canonicalNameEnglish: 'Green Chilli / Hari Mirch',
+    searchableAliases: [
+      'हरी मिर्च',
+      'हरी मिरचा',
+      'मिर्ची',
+      'तीखी मिर्च',
+      'hari mirch',
+      'green chilli',
+      'green chili',
+      'mirchi',
+      'hari mirchi'
+    ],
+    commonSpokenNames: ['हरी मिर्च', 'hari mirch', 'mirchi'],
+    awadhiHindiAliases: ['हरी मिरचा', 'मिरचा', 'हरी मिर्च'],
+    defaultUnits: ['gram', 'packet'],
+    supportedUnits: ['gram', 'packet', 'kg', 'पाव'],
+    supportsWeight: true,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
+    isActive: true,
+  },
+  {
+    id: 'prod_adrak',
+    category: 'अगर दुकान में उपलब्ध हो तो फल / सब्जियां',
+    subcategory: 'अदरक',
+    canonicalNameHindi: 'अदरक',
+    canonicalNameEnglish: 'Ginger / Adrak',
+    searchableAliases: ['अदरक', 'अदी', 'adrak', 'ginger', 'aadi'],
+    commonSpokenNames: ['अदरक', 'adrak'],
+    awadhiHindiAliases: ['अदी', 'अदरक'],
+    defaultUnits: ['gram', 'पाव'],
+    supportedUnits: ['gram', 'kg', 'पाव'],
+    supportsWeight: true,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
+    isActive: true,
+  },
+  {
+    id: 'prod_lahsun',
+    category: 'अगर दुकान में उपलब्ध हो तो फल / सब्जियां',
+    subcategory: 'लहसुन',
+    canonicalNameHindi: 'लहसुन',
+    canonicalNameEnglish: 'Garlic / Lahsun',
+    searchableAliases: ['लहसुन', 'लहसन', 'garlic', 'lahsun', 'lehsun'],
+    commonSpokenNames: ['लहसुन', 'lahsun'],
+    awadhiHindiAliases: ['लहसुन', 'लहसन'],
+    defaultUnits: ['gram', 'पाव'],
+    supportedUnits: ['gram', 'kg', 'पाव'],
+    supportsWeight: true,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
+    isActive: true,
+  },
+  {
+    id: 'prod_nimbu',
+    category: 'अगर दुकान में उपलब्ध हो तो फल / सब्जियां',
+    subcategory: 'नींबू',
+    canonicalNameHindi: 'नींबू',
+    canonicalNameEnglish: 'Lemon / Nimbu',
+    searchableAliases: ['नींबू', 'निम्बू', 'lemon', 'nimbu', 'lemons'],
+    commonSpokenNames: ['नींबू', 'nimbu'],
+    awadhiHindiAliases: ['नींबू', 'नेबू'],
+    defaultUnits: ['piece'],
+    supportedUnits: ['piece'],
+    supportsWeight: false,
+    supportsPieceQuantity: true,
+    supportsPriceVariant: true,
     isActive: true,
   },
 
@@ -2241,6 +2367,7 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     isActive: true,
   },
   ...EXTENDED_KIRANA_CATALOG,
+  ...INDIAN_MARKET_CATALOG,
 ];
 
 // =========================================================================
@@ -2293,6 +2420,7 @@ export const RECOGNIZED_KIRANA_BRANDS: RecognizedKiranaBrand[] = [
   { name: 'Head & Shoulders', hindiName: 'हेड एंड शोल्डर्स', aliases: ['head and shoulders', 'head & shoulders', 'हेड एंड शोल्डर', 'हेड एंड शोल्डर्स'] },
   { name: 'Pantene', hindiName: 'पैंटीन', aliases: ['pantene', 'पैंटीन'] },
   { name: 'Santoor', hindiName: 'संतूर', aliases: ['santoor', 'संतूर', 'santur'] },
+  { name: 'Santosh', hindiName: 'संतोष', aliases: ['santosh', 'संतोष', 'santhosh'] },
   { name: 'Lifebuoy', hindiName: 'लाइफबॉय', aliases: ['lifebuoy', 'लाइफबॉय'] },
   { name: 'Lux', hindiName: 'लक्स', aliases: ['lux', 'लक्स'] },
   { name: 'Dettol', hindiName: 'डेटॉल', aliases: ['dettol', 'डेटॉल', 'डिटॉल'] },
@@ -2444,18 +2572,47 @@ const buildCompiledCatalog = (): CompiledCatalogEntry[] => {
         ...meatMasala,
         id: 'prod_rajesh_meat_masala',
         brand: 'Rajesh',
-        canonicalNameHindi: 'Rajesh मीट मसाला',
+        canonicalNameHindi: 'राजेश मीट मसाला',
         canonicalNameEnglish: 'Rajesh Meat Masala',
       },
       aliases: [
         'rajesh meat masala',
         'rajesh meet masala',
         'rajesh meat masala packet',
-        'rajesh masala',
         'rajesh मीट मसाला',
         'राजेश मीट मसाला',
-        'राजेश मसाला',
         'राजेश का मीट मसाला',
+      ],
+    });
+  }
+
+  // Rajesh Masala (General)
+  if (rajeshBrand) {
+    brandMasalaCombos.push({
+      brand: rajeshBrand,
+      baseProduct: {
+        id: 'prod_rajesh_masala',
+        category: 'मसाले / साबुत मसाले / मसाला पैक',
+        subcategory: 'ब्रांडेड मसाला',
+        canonicalNameHindi: 'राजेश मसाला',
+        canonicalNameEnglish: 'Rajesh Masala',
+        brand: 'Rajesh',
+        searchableAliases: ['राजेश मसाला', 'rajesh masala'],
+        commonSpokenNames: ['राजेश मसाला', 'rajesh masala'],
+        awadhiHindiAliases: ['राजेश मसाला'],
+        defaultUnits: ['packet', 'piece'],
+        supportedUnits: ['packet', 'piece'],
+        supportsWeight: false,
+        supportsPieceQuantity: true,
+        supportsPriceVariant: true,
+        isActive: true,
+      },
+      aliases: [
+        'rajesh masala',
+        'राजेश मसाला',
+        'rajesh masla',
+        'rajesh ka masala',
+        'राजेश का मसाला',
       ],
     });
   }
@@ -2759,25 +2916,46 @@ export const matchKiranaMasterProduct = (
   if (!text || text.trim().length < 2) return null;
   const norm = normalizeCatalogQuery(text);
 
-  // 1. Exact alias match
+  // 1. Exact alias match (canonical product names, searchable aliases, Hindi/English, transliterations)
   for (const entry of COMPILED_CATALOG) {
     if (norm === entry.normalizedAlias) {
       return { product: entry.product, matchedAlias: entry.alias };
     }
   }
 
-  // 2. Substring match with word boundary check
-  for (const entry of COMPILED_CATALOG) {
-    const regex = new RegExp(`(?:^|[\\s])${entry.normalizedAlias.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')}(?:$|[\\s])`, 'i');
-    if (regex.test(norm)) {
-      return { product: entry.product, matchedAlias: entry.alias };
+  // 2. Exact match after stripping connecting prepositions & completion verbs ("का", "की", "के", "वाला", "दे दो", "चाहिए")
+  const strippedNorm = norm
+    .replace(/(?:^|[^\p{L}\p{M}\p{N}])(दे दो|दे दा|देइ दा|चाहिए|मुझे चाहिए|दीजिए|दीजिये|bhai|bhaiya|de do|chahiye)(?=[^\p{L}\p{M}\p{N}]|$)/gui, ' ')
+    .replace(/(?:^|[^\p{L}\p{M}\p{N}])(का|की|के|ka|ki|ke|वाला|वाली|वाले|wala|wali|wale)(?=[^\p{L}\p{M}\p{N}]|$)/gui, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (strippedNorm && strippedNorm !== norm) {
+    for (const entry of COMPILED_CATALOG) {
+      if (strippedNorm === entry.normalizedAlias) {
+        return { product: entry.product, matchedAlias: entry.alias };
+      }
     }
   }
 
-  // 3. Fallback contains match for long multi-word aliases (6+ chars)
+  // 3. Substring match with strict remainder validation:
+  // If the query contains entry.normalizedAlias, the remaining text MUST consist ONLY of fillers/courtesy/quantity words.
+  // If the remaining text contains substantive unknown words (e.g. "संतोष" in "संतोष साबुन", "हमारा" in "हमारा सामान"),
+  // DO NOT match! Never guess or collapse a distinct brand/item into a generic product.
   for (const entry of COMPILED_CATALOG) {
-    if (entry.normalizedAlias.length >= 6 && entry.normalizedAlias.includes(' ') && norm.includes(entry.normalizedAlias)) {
-      return { product: entry.product, matchedAlias: entry.alias };
+    const escaped = entry.normalizedAlias.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    const regex = new RegExp(`(?:^|[\\s])${escaped}(?:$|[\\s])`, 'i');
+    if (regex.test(norm)) {
+      const remainder = norm.replace(regex, ' ').replace(/\s+/g, ' ').trim();
+      if (!remainder || remainder.length < 2) {
+        return { product: entry.product, matchedAlias: entry.alias };
+      }
+      const isFillerRemainder = /^(?:भाई|भैया|जी|अरे|सुनो|दे दो|दे दा|चाहिए|मुझे चाहिए|दीजिए|दीजिये|bhai|bhaiya|de do|chahiye|का|की|के|ka|ki|ke|वाला|वाली|वाले|ek|do|एक|दो|किलो|पैकेट|packet|kg|ग्राम|gram|लीटर|liter|l|\d+)+$/ui.test(
+        remainder.replace(/\s+/g, '')
+      );
+      if (isFillerRemainder) {
+        return { product: entry.product, matchedAlias: entry.alias };
+      }
     }
   }
 
@@ -2798,8 +2976,9 @@ export const splitUtteranceByCatalogBoundaries = (rawText: string): string[] => 
 
   let text = rawText.trim();
 
-  // 1. Clean introductory fillers
+  // 1. Clean introductory fillers & normalize speech recognition artifacts like Chinese numeral 一 to Hindi "एक"
   text = text.replace(/^(भाई|भैया|भइया|जी|अरे भाई|अरे|सुनो|bhai|bhaiya|are|suno)\s*/gi, '');
+  text = text.replace(/(?:^|[^\p{L}\p{M}\p{N}])[\u4e00一—–-](?=\s*(?:किलो|kg|kilo|लीटर|दर्जन|पैकेट|ग्राम|पीस|प्लेट|[a-zA-Z\u0900-\u097F]+))/gui, ' एक ');
 
   // 2. Primary split by natural conjunctions & punctuation
   const initialClauses = text
@@ -2808,11 +2987,45 @@ export const splitUtteranceByCatalogBoundaries = (rawText: string): string[] => 
     .filter((c) => c.length > 0);
 
   const finalClauses: string[] = [];
+  const starterRegex = /(?:(?:^|[^\p{L}\p{M}\p{N}])(?:\d+(?:\.\d+)?|ek|do|teen|char|chaar|paanch|panch|chhah|chhe|saat|aath|nau|das|एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस)\s*(?:kilo|kg|kgs|किलो|केजी|gram|gm|gms|ग्राम|darjan|dozen|दर्जन|plate|plates|प्लेट|packet|packets|पैकेट|पैक|piece|pieces|pcs|पीस|नग|litre|liter|ltr|लीटर|bottle|bottles|बोतल|box|boxes|डिब्बा)|(?:^|[^\p{L}\p{M}\p{N}])(?:\d+|ek|do|teen|char|chaar|paanch|panch|एक|दो|दुई|तीन|चार|पांच|पाँच)\s*(?:half|full|हाफ|फुल)\s*(?:plate|plates|प्लेट)|(?:^|[^\p{L}\p{M}\p{N}])(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो|darjan|dozen|दर्जन|litre|लीटर|plate|प्लेट)|(?:^|[^\p{L}\p{M}\p{N}])(?:dedh|dhai|डेढ़|ढाई|सवा|पौन)\s*(?:kilo|kg|किलो)|(?:^|[^\p{L}\p{M}\p{N}])(?:half|full|हाफ|फुल)\s*(?:plate|plates|प्लेट)|(?:^|[^\p{L}\p{M}\p{N}])(?:(?:ek|एक)\s+)?(?:paav|pao|पाव)|(?:(?:₹|rs\.?|रुपये?|रु)\s*\d+|\d+\s*(?:रुपये?|rupaye?|rs|rupees?))\s*(?:ka|ki|ke|वाला|वाली|वाले)?|(?:^|[^\p{L}\p{M}\p{N}])(?:\d+|ek|do|dui|teen|char|chaar|paanch|panch|एक|दो|दुई|तीन|चार|पांच|पाँच)\s*(?:piece|pieces|pcs|पीस)?\s+[a-zA-Z\u0900-\u097F]+)/gui;
 
   for (const clause of initialClauses) {
-    // If clause has multiple distinct catalog products, split them!
-    const subSegments = splitSingleClauseByProducts(clause);
-    finalClauses.push(...subSegments);
+    const matches = [...clause.matchAll(starterRegex)];
+    if (matches.length > 1) {
+      let lastCut = 0;
+      for (let i = 1; i < matches.length; i++) {
+        const matchIdx = matches[i].index!;
+        const prevSegment = clause.substring(lastCut, matchIdx).trim();
+        const followingText = clause.substring(matchIdx).trim();
+
+        // 1. If preceding segment ended in a price variant (₹5 वाला, 10 वाला) and following is a count (10 पैकेट), do not split!
+        const prevHasPriceVariant = /(?:₹\s*\d+|\d+\s*(?:रुपये?|रु|rupaye?|rs)?|दस|पांच|पाँच|बीस|पचास|\d+)\s*(?:वाला|वाली|वाले|wala|wali|wale)$/i.test(prevSegment);
+        const followingIsCountOnly = /^(?:\d+|दस|पांच|पाँच|चार|तीन|दो|दुई|एक)\s*(?:packet|packets|pack|packs|पैकेट|पैक|पैट|पीस|piece|pieces|pcs)\b/i.test(followingText);
+        if (prevHasPriceVariant && followingIsCountOnly) {
+          continue;
+        }
+
+        // 2. Following text MUST have more than just a bare unit or quantity to be an independent item
+        const followingRemainder = followingText
+          .replace(/^(?:\d+(?:\.\d+)?|ek|do|teen|char|chaar|paanch|panch|das|एक|दो|तीन|चार|पांच|पाँच|दस)\s*(?:kilo|kg|kgs|किलो|केजी|gram|gm|gms|ग्राम|darjan|dozen|दर्जन|plate|plates|प्लेट|packet|packets|पैकेट|पैक|piece|pieces|pcs|पीस|नग|litre|liter|ltr|लीटर|bottle|bottles|बोतल|box|boxes|डिब्बा)/i, '')
+          .replace(/(?:का|की|के|wala|wali|वाले|वाला|चाहिए|दे दो)/gi, '')
+          .trim();
+        if (followingRemainder.length < 2) {
+          continue;
+        }
+
+        if (prevSegment.length >= 3) {
+          finalClauses.push(prevSegment);
+          lastCut = matchIdx;
+        }
+      }
+      const tail = clause.substring(lastCut).trim();
+      if (tail) finalClauses.push(tail);
+    } else {
+      // If clause has multiple distinct catalog products, split them!
+      const subSegments = splitSingleClauseByProducts(clause);
+      finalClauses.push(...subSegments);
+    }
   }
 
   return finalClauses.filter((c) => c.length > 0);
@@ -2900,12 +3113,40 @@ function splitSingleClauseByProducts(clause: string): string[] {
   }
 
   if (coalesced.length <= 1) {
+    const starterRegex = /(?:(?:\d+(?:\.\d+)?|ek|do|teen|char|chaar|paanch|panch|chhah|chhe|saat|aath|nau|das|एक|दो|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस)\s*(?:kilo|kg|kgs|किलो|केजी|gram|gm|gms|ग्राम|darjan|dozen|दर्जन|plate|plates|प्लेट|packet|packets|पैकेट|पैक|piece|pieces|pcs|पीस|नग|litre|liter|ltr|लीटर|bottle|bottles|बोतल|box|boxes|डिब्बा)|\b(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो|darjan|dozen|दर्जन|litre|लीटर|plate|प्लेट)|\b(?:dedh|dhai|डेढ़|ढाई|सवा|पौन)\s*(?:kilo|kg|किलो)|\b(?:half|full|हाफ|फुल)\s*plate|\b(?:ek\s+)?(?:paav|pao|पाव)|(?:(?:₹|rs\.?|रुपये?|रु)\s*\d+|\d+\s*(?:रुपये?|rupaye?|rs|rupees?))\s*(?:ka|ki|ke|वाला|वाली|वाले)?|\b\d+\s*(?:piece|pieces|pcs)?\s+[a-zA-Z\u0900-\u097F]+)/gi;
+
+    const matches = [...clause.matchAll(starterRegex)];
+    if (matches.length > 1) {
+      const segs: string[] = [];
+      let last = 0;
+      for (let i = 1; i < matches.length; i++) {
+        const idx = matches[i].index!;
+        const prev = clause.substring(last, idx).trim();
+        const following = clause.substring(idx).trim();
+        const prevHasPriceVariant = /(?:₹\s*\d+|\d+\s*रुपये?|दस|पांच|पाँच|बीस|पचास|\d+)\s*(?:वाला|वाली|वाले|wala|wali|wale)$/i.test(prev);
+        const followingIsCountOnly = /^(?:\d+|दस|पांच|पाँच|चार|तीन|दो|दुई|एक)\s*(?:packet|packets|pack|packs|पैकेट|पैक|पैट|पीस|piece|pieces|pcs)\s*$/i.test(following);
+        if (prevHasPriceVariant && followingIsCountOnly) {
+          continue;
+        }
+        if (prev.length >= 3) {
+          segs.push(prev);
+          last = idx;
+        }
+      }
+      const tail = clause.substring(last).trim();
+      if (tail) segs.push(tail);
+      if (segs.length > 1) return segs;
+    }
+
     return [clause];
   }
 
   // Split into segments based on coalesced product positions + intervening quantities
   const segments: string[] = [];
   let lastCut = 0;
+
+  const QTY_REGEX_STR =
+    '(?:(?:\\d+(?:\\.\\d+)?|एक|दो|दुई|तीन|चार|पांच|पाँच|दस)\\s*(?:किलो|kg|kilo|kilos|ग्राम|g|gm|packet|packets|pack|packs|पैकेट|पैक|पैट|लीटर|litre|l|darjan|dozen|दर्जन|plate|plates|प्लेट|piece|pieces|pcs|पीस)|आधा\\s*(?:किलो|darjan|dozen|दर्जन)|(?:half|full|हाफ|फुल)\\s*plate|पाव|एक\\s*पाव|(?:₹|रुपये?|रु\\.?|rs\\.?|rupaye)?\\s*\\d+\\s*(?:रुपये?|रुपए|रु|rupaye|rupees)?\\s*(?:वाला|वाली|वाले|का|की|के)?)';
 
   for (let i = 1; i < coalesced.length; i++) {
     const prev = coalesced[i - 1];
@@ -2915,20 +3156,25 @@ function splitSingleClauseByProducts(clause: string): string[] {
     // Example: in "सूजी 1 किलो 1 किलो चना दाल", gap between "सूजी" and "चना दाल" is " 1 किलो 1 किलो "
     const gap = clause.substring(prev.end, curr.start);
 
-    // Look for quantity pattern in the gap that belongs to the current product
-    // If the gap has two quantities ("1 किलो 1 किलो"), split between them!
-    const doubleQtyMatch = gap.match(
-      /((?:(?:\d+|एक|दो|दुई|तीन|चार|पांच|पाँच|दस)\s*(?:किलो|kg|ग्राम|g|gm|packet|पैकेट|पैक|लीटर)|आधा\s*किलो|पाव|एक\s*पाव|₹\s*\d+\s*(?:वाला|का)))\s+((?:(?:\d+|एक|दो|दुई|तीन|चार|पांच|पाँच|दस)\s*(?:किलो|kg|ग्राम|g|gm|packet|पैकेट|पैक|लीटर)|आधा\s*किलो|पाव|एक\s*पाव|₹\s*\d+\s*(?:वाला|का)))/i
-    );
-
+    const gapMatches = [...gap.matchAll(new RegExp(QTY_REGEX_STR, 'gi'))];
     let cutIndex = curr.start;
 
-    if (doubleQtyMatch && doubleQtyMatch.index !== undefined) {
-      // Cut between the two quantities
-      cutIndex = prev.end + doubleQtyMatch.index + doubleQtyMatch[1].length;
+    if (gapMatches.length >= 2) {
+      // Cut between first quantity (belongs to prev) and second quantity (belongs to curr)
+      cutIndex = prev.end + gapMatches[0].index! + gapMatches[0][0].length;
+    } else if (gapMatches.length === 1) {
+      // Check if preceding product already had a prefix quantity before it (e.g. "1 kilo aloo 1 kilo pyaj")
+      const beforePrev = clause.substring(lastCut, prev.start);
+      const prevHasPrefixQty = new RegExp(QTY_REGEX_STR, 'i').test(beforePrev);
+
+      if (prevHasPrefixQty) {
+        // Preceding product has prefix qty, so qty in gap belongs to curr product -> cut BEFORE it!
+        cutIndex = prev.end + gapMatches[0].index!;
+      } else {
+        // Preceding product had NO prefix qty, so qty in gap is postfix for prev product -> cut AFTER it!
+        cutIndex = prev.end + gapMatches[0].index! + gapMatches[0][0].length;
+      }
     } else {
-      // In Hindi/Indian kirana speech, post-positional quantity ("Everest Sabji Masala 2 packet", "सूजी 1 किलो")
-      // belongs to the preceding item. So the cut is right before curr.start.
       cutIndex = curr.start;
     }
 

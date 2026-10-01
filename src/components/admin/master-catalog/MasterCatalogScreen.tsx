@@ -93,7 +93,7 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
   const [formError, setFormError] = useState<string | null>(null);
 
   // Form Fields
-  const [formData, setFormData] = useState<CreateMasterProductDTO>({
+  const [formData, setFormData] = useState<CreateMasterProductDTO & { isActive?: boolean }>({
     name: '',
     nameHindi: '',
     category: KIRANA_CATEGORIES[0],
@@ -104,6 +104,7 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
     defaultUnit: 'kg',
     barcode: '',
     description: '',
+    isActive: true,
   });
   const [aliasesInput, setAliasesInput] = useState('');
 
@@ -198,6 +199,7 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
       defaultUnit: 'kg',
       barcode: '',
       description: '',
+      isActive: true,
     });
     setAliasesInput('');
     setFormError(null);
@@ -218,10 +220,27 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
       defaultUnit: p.defaultUnit || 'kg',
       barcode: p.barcode || '',
       description: p.description || '',
+      isActive: p.isActive !== false,
     });
     setAliasesInput((p.aliases || []).join(', '));
     setFormError(null);
     setIsModalOpen(true);
+  };
+
+  // Quick toggle active / inactive status
+  const handleToggleActive = async (p: MasterProduct, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const nextActive = p.isActive === false ? true : false;
+    try {
+      await adminApi.updateMasterProduct(p.id, {
+        isActive: nextActive,
+      });
+      setProducts((prev) => prev.map((item) => (item.id === p.id ? { ...item, isActive: nextActive } : item)));
+      showToast(`'${p.nameHindi}' अब ${nextActive ? 'सक्रिय (Active)' : 'निष्क्रिय (Inactive)'} है`);
+    } catch (err: any) {
+      console.error('Failed to toggle master product status', err);
+      showToast(err.message || 'स्थिति बदलने में विफल');
+    }
   };
 
   // Handle Form Submit
@@ -253,6 +272,7 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
         const updated = await adminApi.updateMasterProduct(editingProduct.id, {
           ...formData,
           aliases,
+          isActive: formData.isActive !== false,
         });
         setProducts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
         showToast(`'${updated.nameHindi}' मास्टर कैटलॉग में अपडेट हो गया`);
@@ -300,37 +320,35 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
         </div>
       )}
 
-      {/* Header Banner */}
-      <div className="rounded-2xl border border-slate-800 bg-linear-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 shadow-xl">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                <BookOpen className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-white flex items-center gap-2">
-                  सेंट्रल मास्टर कैटलॉग (Central Master Catalogue)
-                  <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold text-indigo-300 border border-indigo-500/30">
-                    Admin Managed
-                  </span>
-                </h1>
-                <p className="text-sm text-slate-300">
-                  सभी दुकानों के लिए सामान्य किराना सामान का केंद्रीय भंडार — नाम, फोटो और पहचान एक जगह प्रबंधित करें
-                </p>
-              </div>
+      {/* Compact Header Banner */}
+      <div className="rounded-2xl border border-slate-800 bg-linear-to-r from-slate-900 via-indigo-950/30 to-slate-900 p-3.5 sm:p-4 shadow-sm">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-base font-black text-white flex items-center gap-2">
+                <span>सेंट्रल मास्टर कैटलॉग (Master Catalogue)</span>
+                <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-300 border border-indigo-500/30">
+                  Admin
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-400">
+                सभी दुकानों के लिए सामान्य किराना सामान का केंद्रीय भंडार — नाम, फोटो और पहचान प्रबंधित करें
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               id="refresh-master-catalog-btn"
               onClick={fetchMasterProducts}
               disabled={loading}
-              className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition active:scale-95"
               title="रीफ्रेश करें"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-indigo-400' : ''}`} />
               रीफ्रेश
             </button>
 
@@ -338,85 +356,85 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
               <button
                 id="navigate-shops-btn"
                 onClick={onNavigateToShops}
-                className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2.5 text-sm font-medium text-amber-300 hover:bg-slate-700 transition"
+                className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition active:scale-95"
               >
-                <Store className="h-4 w-4" />
-                दुकानों में सामान जोड़ें
+                <Store className="h-3.5 w-3.5" />
+                दुकानें
               </button>
             )}
 
             <button
               id="add-master-product-btn"
               onClick={handleOpenCreateModal}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 transition"
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-indigo-600/25 hover:bg-indigo-500 transition active:scale-95"
             >
-              <Plus className="h-4 w-4" />
-              + नया मास्टर सामान जोड़ें
+              <Plus className="h-3.5 w-3.5" />
+              + नया मास्टर सामान
             </button>
           </div>
         </div>
 
-        {/* Rule Notice Box */}
-        <div className="mt-5 rounded-xl border border-indigo-500/20 bg-indigo-950/30 p-3.5 text-xs text-indigo-200 flex items-start gap-2.5">
+        {/* Compact Rule Notice Box */}
+        <div className="mt-3 rounded-lg border border-indigo-500/20 bg-indigo-950/30 p-2.5 text-[11px] text-indigo-200 flex items-start gap-2">
           <Info className="h-4 w-4 text-indigo-400 shrink-0 mt-0.5" />
-          <div className="space-y-0.5 leading-relaxed">
-            <span className="font-semibold text-indigo-300">मास्टर कैटलॉग का नियम:</span>{' '}
-            यहां केवल सामान का नाम, फोटो, श्रेणी और पहचान उपनाम (aliases) एक ही बार जोड़े जाते हैं।{' '}
-            <strong className="text-white">मूल्य (Price), Price Variants और स्टॉक (Stock)</strong> दुकानदार अपनी दुकान की प्रोफाइल में स्वतंत्र रूप से तय करते हैं।
+          <div className="leading-relaxed">
+            <span className="font-semibold text-indigo-300">नियम:</span>{' '}
+            सामान का नाम, फोटो, श्रेणी और पहचान उपनाम (aliases) एक ही बार जोड़े जाते हैं।{' '}
+            <strong className="text-white">मूल्य (Price) और स्टॉक (Stock)</strong> दुकानदार अपनी दुकान में तय करते हैं।
           </div>
         </div>
 
-        {/* Quick Stats Grid */}
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
-            <div className="text-xs font-medium text-slate-400">कुल मास्टर सामान</div>
-            <div className="mt-1 text-2xl font-black text-white">{stats.total}</div>
-            <div className="mt-0.5 text-xs text-emerald-400">केंद्रीय रूप से उपलब्ध</div>
+        {/* Compact Quick Stats Grid */}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">कुल मास्टर सामान</div>
+            <div className="mt-0.5 text-lg font-black text-white">{stats.total}</div>
+            <div className="text-[10px] text-emerald-400">केंद्रीय रूप से उपलब्ध</div>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
-            <div className="text-xs font-medium text-slate-400">कुल श्रेणियां</div>
-            <div className="mt-1 text-2xl font-black text-indigo-300">{stats.categoriesCount}</div>
-            <div className="mt-0.5 text-xs text-slate-400">किराना व जनरल श्रेणियां</div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">कुल श्रेणियां</div>
+            <div className="mt-0.5 text-lg font-black text-indigo-300">{stats.categoriesCount}</div>
+            <div className="text-[10px] text-slate-400">किराना श्रेणियां</div>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
-            <div className="text-xs font-medium text-slate-400">फोटो सहित सामान</div>
-            <div className="mt-1 text-2xl font-black text-emerald-400">{stats.withPhotos}</div>
-            <div className="mt-0.5 text-xs text-slate-400">ऑटो-कॉपी फोटो सपोर्ट</div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">फोटो सहित सामान</div>
+            <div className="mt-0.5 text-lg font-black text-emerald-400">{stats.withPhotos}</div>
+            <div className="text-[10px] text-slate-400">ऑटो-कॉपी फोटो</div>
           </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5">
-            <div className="text-xs font-medium text-slate-400">ब्रांडेड सामान</div>
-            <div className="mt-1 text-2xl font-black text-amber-300">{stats.withBrands}</div>
-            <div className="mt-0.5 text-xs text-slate-400">टाटा, एमडीएच, पार्ले आदि</div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-2.5">
+            <div className="text-[10px] font-bold text-slate-400 uppercase">ब्रांडेड सामान</div>
+            <div className="mt-0.5 text-lg font-black text-amber-300">{stats.withBrands}</div>
+            <div className="text-[10px] text-slate-400">टाटा, एमडीएच, पार्ले आदि</div>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 sm:p-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             id="master-search-input"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="सामान का नाम खोजें (हिंदी, English, Aliases, Brand)..."
-            className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-hidden"
+            className="w-full rounded-lg border border-slate-800 bg-slate-950 py-1.5 pl-9 pr-8 text-xs text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-hidden"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Category Dropdown */}
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <select
               id="master-category-select"
               value={selectedCategory}
@@ -505,99 +523,134 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
         </div>
       )}
 
-      {/* Products Grid */}
+      {/* Products Compact List / Table Layout */}
       {!loading && !error && filteredProducts.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredProducts.map((p) => (
-            <div
-              key={p.id}
-              id={`master-card-${p.id}`}
-              className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 p-4 transition duration-200 hover:border-slate-700 hover:bg-slate-900 hover:shadow-xl"
-            >
-              {/* Top Row: Image and Basic Info */}
-              <div>
-                <div className="relative mb-3 aspect-4/3 w-full overflow-hidden rounded-lg bg-slate-950 border border-slate-800">
+        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow-sm">
+          {/* Table Header Bar */}
+          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950/80 px-3 py-2 text-[11px] font-bold text-slate-400">
+            <div className="flex items-center gap-2">
+              <Layers className="h-3.5 w-3.5 text-indigo-400" />
+              <span>मास्टर सामान सूची (Master Items List)</span>
+            </div>
+            <div className="text-[10px] text-slate-500">
+              कुल: <span className="text-slate-200 font-semibold">{filteredProducts.length}</span> सामान
+            </div>
+          </div>
+
+          {/* Product Rows List */}
+          <div className="divide-y divide-slate-800/60">
+            {filteredProducts.map((p) => (
+              <div
+                key={p.id}
+                id={`master-card-${p.id}`}
+                className="group flex items-center gap-2.5 px-2.5 py-1.5 sm:px-3 sm:py-2 hover:bg-slate-800/40 transition"
+              >
+                {/* Small Product Thumbnail */}
+                <div className="relative h-8 w-8 sm:h-9 sm:w-9 shrink-0 overflow-hidden rounded-md border border-slate-800 bg-slate-950">
                   <img
                     src={p.imageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&auto=format&fit=crop&q=60'}
                     alt={p.name}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    className="h-full w-full object-cover"
                     loading="lazy"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
                         'https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&auto=format&fit=crop&q=60';
                     }}
                   />
-                  {p.brand && (
-                    <span className="absolute top-2 left-2 rounded-md bg-slate-950/80 backdrop-blur-xs px-2 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-500/30">
-                      {p.brand}
+                </div>
+
+                {/* Product Name & Info (Middle) */}
+                <div className="flex-1 min-w-0">
+                  {/* Line 1: Hindi Name + English Name + Brand */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs sm:text-sm font-bold text-white truncate max-w-[150px] sm:max-w-[240px]">
+                      {p.nameHindi}
                     </span>
-                  )}
-                  <span className="absolute bottom-2 right-2 rounded-md bg-slate-950/80 backdrop-blur-xs px-2 py-0.5 text-[10px] font-semibold text-slate-300 border border-slate-800">
-                    इकाई: {p.defaultUnit || 'kg'}
-                  </span>
-                </div>
-
-                {/* Product Titles */}
-                <div>
-                  <h3 className="text-base font-bold text-white line-clamp-1 group-hover:text-indigo-300 transition">
-                    {p.nameHindi}
-                  </h3>
-                  <p className="text-xs text-slate-400 line-clamp-1 font-medium mt-0.5">
-                    {p.name}
-                  </p>
-                </div>
-
-                {/* Categories */}
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  <span className="rounded-md bg-indigo-950/60 px-2 py-0.5 text-[11px] font-medium text-indigo-300 border border-indigo-800/40">
-                    {p.category}
-                  </span>
-                  {p.subCategory && (
-                    <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-300 border border-slate-700">
-                      {p.subCategory}
+                    <span className="text-[11px] sm:text-xs text-slate-400 font-medium truncate max-w-[130px] sm:max-w-[200px]">
+                      ({p.name})
                     </span>
-                  )}
-                </div>
+                    {p.brand && (
+                      <span className="shrink-0 rounded bg-amber-500/15 px-1.5 py-0.2 text-[9px] sm:text-[10px] font-bold text-amber-300 border border-amber-500/25">
+                        {p.brand}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Aliases */}
-                {p.aliases && p.aliases.length > 0 && (
-                  <div className="mt-2.5 text-[11px] text-slate-400">
-                    <span className="text-slate-500 font-medium">पहचान: </span>
-                    <span className="line-clamp-1 text-slate-300">
-                      {p.aliases.slice(0, 4).join(', ')}
-                      {p.aliases.length > 4 ? ` +${p.aliases.length - 4}` : ''}
+                  {/* Line 2: Category, Subcategory, Aliases, Unit */}
+                  <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-400 mt-0.5 flex-wrap">
+                    <span className="text-indigo-300 font-medium truncate max-w-[130px] sm:max-w-[180px]">
+                      {p.category}
+                    </span>
+                    {p.subCategory && (
+                      <>
+                        <span className="text-slate-600">•</span>
+                        <span className="text-slate-400 truncate max-w-[110px] sm:max-w-[160px]">
+                          {p.subCategory}
+                        </span>
+                      </>
+                    )}
+                    {p.aliases && p.aliases.length > 0 && (
+                      <>
+                        <span className="text-slate-600 hidden xs:inline">•</span>
+                        <span
+                          className="text-slate-500 truncate max-w-[120px] sm:max-w-[220px] hidden xs:inline"
+                          title={`पहचान / Aliases: ${p.aliases.join(', ')}`}
+                        >
+                          पहचान: {p.aliases.slice(0, 3).join(', ')}
+                          {p.aliases.length > 3 ? ` +${p.aliases.length - 3}` : ''}
+                        </span>
+                      </>
+                    )}
+                    <span className="text-slate-600">•</span>
+                    <span className="rounded bg-slate-800/80 px-1 py-0.2 text-[9.5px] font-mono text-slate-300 border border-slate-700/60">
+                      {p.defaultUnit || 'kg'}
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* Bottom Row: Shop Price Notice and Admin Actions */}
-              <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                <span className="rounded-md bg-slate-950 px-2 py-1 text-[10px] font-medium text-slate-400 border border-slate-800">
-                  मूल्य: दुकान स्तर पर तय होगा
-                </span>
+                {/* Right: Active/Inactive Status, Edit, Delete Actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Active/Inactive Status Toggle / Badge */}
+                  <button
+                    onClick={(e) => handleToggleActive(p, e)}
+                    title={p.isActive !== false ? 'सक्रिय (क्लिक करके निष्क्रिय करें)' : 'निष्क्रिय (क्लिक करके सक्रिय करें)'}
+                    className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] sm:text-[10px] font-semibold border transition ${
+                      p.isActive !== false
+                        ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800/40 hover:bg-emerald-900/60'
+                        : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        p.isActive !== false ? 'bg-emerald-400' : 'bg-slate-500'
+                      }`}
+                    />
+                    <span>{p.isActive !== false ? 'सक्रिय' : 'निष्क्रिय'}</span>
+                  </button>
 
-                <div className="flex items-center gap-1.5">
+                  {/* Edit Action Button */}
                   <button
                     id={`edit-master-btn-${p.id}`}
                     onClick={() => handleOpenEditModal(p)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition"
+                    className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition"
                     title="संपादित करें"
                   >
-                    <Edit2 className="h-3.5 w-3.5" />
+                    <Edit2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
+
+                  {/* Delete Action Button */}
                   <button
                     id={`delete-master-btn-${p.id}`}
                     onClick={() => setDeleteId(p.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-rose-400 hover:border-rose-500 hover:bg-rose-950/40 transition"
+                    className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800 text-rose-400 hover:border-rose-500 hover:bg-rose-950/40 transition"
                     title="हटाएं"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -771,6 +824,8 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
                     <option value="L">लीटर (L)</option>
                     <option value="ml">मिलीलीटर (ml)</option>
                     <option value="box">बॉक्स (box)</option>
+                    <option value="dozen">दर्जन (dozen)</option>
+                    <option value="plate">प्लेट (plate)</option>
                   </select>
                 </div>
 
@@ -804,6 +859,47 @@ export const MasterCatalogScreen: React.FC<MasterCatalogScreenProps> = ({ onNavi
                 <p className="mt-1 text-[11px] text-slate-500">
                   ग्राहकों व दुकानदारों द्वारा खोजे जाने वाले सामान्य बोलचाल के नाम
                 </p>
+              </div>
+
+              {/* Active / Inactive Status Toggle */}
+              <div className="rounded-xl border border-slate-700 bg-slate-950 p-3 flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold text-slate-200 block">
+                    सामान की स्थिति (Active / Inactive Status)
+                  </label>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {formData.isActive !== false
+                      ? 'सक्रिय (Active) — दुकानों द्वारा कैटलॉग में जोड़ने हेतु उपलब्ध'
+                      : 'निष्क्रिय (Inactive) — अस्थायी रूप से कैटलॉग से छुपा हुआ'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isActive: formData.isActive === false ? true : false })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    formData.isActive !== false ? 'bg-emerald-600' : 'bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      formData.isActive !== false ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300">
+                  विवरण / टिप्पणी (Description - वैकल्पिक)
+                </label>
+                <input
+                  type="text"
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="उदा. सामान्य Kirana दैनिक उपयोग सामान"
+                  className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-hidden"
+                />
               </div>
 
               {/* Notice that price is not set here */}

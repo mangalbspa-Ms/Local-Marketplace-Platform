@@ -787,8 +787,14 @@ export const CartScreen: React.FC<CartScreenProps> = ({
                     </span>
                   </div>
                   <div className="text-slate-600 leading-relaxed">
-                    {selectedAddress.streetAddress}, {selectedAddress.area}, Mumbai
+                    {selectedAddress.streetAddress}, {selectedAddress.area ? `${selectedAddress.area}, ` : ''}{selectedAddress.city || 'Mumbai'}{selectedAddress.pincode ? ` - ${selectedAddress.pincode}` : ''}
                   </div>
+                  {selectedAddress.coordinates && (
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 mt-1">
+                      <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>{language === 'hi' ? '📍 सटीक मैप पिन उपलब्ध' : '📍 Exact Map Location Pinned'}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button

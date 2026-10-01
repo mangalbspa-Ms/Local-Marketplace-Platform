@@ -9,7 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { User, UserAddress, UserRole } from '../../types/auth.ts';
-import { LocalMarket, Shop } from '../../types/market.ts';
+import { LocalMarket, Shop, ShopVerificationStatus, ShopChangeRequest, LocationSource } from '../../types/market.ts';
 import { Product, MasterProduct, CreateMasterProductDTO, UpdateMasterProductDTO, ProductUnitType } from '../../types/product.ts';
 import { Order, OrderStatus } from '../../types/order.ts';
 import { ShoppingRequest, ShoppingRequestStatus } from '../../types/shoppingRequest.ts';
@@ -74,6 +74,7 @@ interface PersistentDatabaseState {
   aiDrafts?: AIVoiceDraft[];
   sellerInvitations?: SellerInvitation[];
   masterProducts?: MasterProduct[];
+  shopChangeRequests?: ShopChangeRequest[];
 }
 
 class Database {
@@ -98,6 +99,7 @@ class Database {
   private aiAudits: AIAuditRecord[] = [];
   private aiDrafts: Map<string, AIVoiceDraft> = new Map();
   private sellerInvitations: Map<string, SellerInvitation> = new Map();
+  private shopChangeRequests: Map<string, ShopChangeRequest> = new Map();
 
   private persistenceFilePath: string;
   private isPersisting: boolean = false;
@@ -183,8 +185,13 @@ class Database {
     (state.payments || []).forEach((p) => this.payments.set(p.id, p));
     (state.settlements || []).forEach((s) => this.settlements.set(s.id, s));
     (state.notifications || []).forEach((n) => this.notifications.set(n.id, n));
+    seedNotifications.forEach((sn) => {
+      if (!this.notifications.has(sn.id)) {
+        this.notifications.set(sn.id, { ...sn });
+      }
+    });
     (state.supportTickets || []).forEach((t) => this.supportTickets.set(t.id, t));
-    (state.subscriptionPlans && state.subscriptionPlans.length > 0 ? state.subscriptionPlans : seedSubscriptionPlans)
+    (Array.isArray(state.subscriptionPlans) ? state.subscriptionPlans : seedSubscriptionPlans)
       .forEach((sp) => this.subscriptionPlans.set(sp.id, sp));
     (state.sellerSubscriptions && state.sellerSubscriptions.length > 0 ? state.sellerSubscriptions : seedSellerSubscriptions)
       .forEach((ss) => this.sellerSubscriptions.set(ss.id, ss));
@@ -196,6 +203,53 @@ class Database {
     this.aiAudits = state.aiAudits || [];
     (state.aiDrafts || []).forEach((d) => this.aiDrafts.set(d.id, d));
     (state.sellerInvitations || []).forEach((inv) => this.sellerInvitations.set(inv.invitationToken, inv));
+    this.shopChangeRequests.clear();
+    (state.shopChangeRequests || []).forEach((cr) => this.shopChangeRequests.set(cr.id, cr));
+
+    // Safe Migration: Ensure all shops have a verificationStatus, location metadata, and normalized photos
+    this.shops.forEach((s) => {
+      const profilePhoto = s.profilePhotoUrl || s.logoImageUrl || s.photoUrl;
+      const coverPhoto = s.coverPhotoUrl || s.bannerImageUrl || s.bannerUrl;
+      if (profilePhoto) {
+        s.profilePhotoUrl = s.profilePhotoUrl || profilePhoto;
+        s.logoImageUrl = s.logoImageUrl || profilePhoto;
+        s.photoUrl = s.photoUrl || profilePhoto;
+      }
+      if (coverPhoto) {
+        s.coverPhotoUrl = s.coverPhotoUrl || coverPhoto;
+        s.bannerImageUrl = s.bannerImageUrl || coverPhoto;
+        s.bannerUrl = s.bannerUrl || coverPhoto;
+      }
+      const seedShopMatch = seedShops.find((ss) => ss.id === s.id);
+      if (seedShopMatch?.coverPhotos && (!s.coverPhotos || s.coverPhotos.length === 0)) {
+        s.coverPhotos = [...seedShopMatch.coverPhotos];
+      }
+      if (!s.coverPhotos && coverPhoto) {
+        s.coverPhotos = [coverPhoto];
+      }
+      if (!s.verificationStatus) {
+        if (s.isVerifiedByAdmin && s.isActive) {
+          s.verificationStatus = 'VERIFIED';
+          s.verifiedAt = s.verifiedAt || '2026-08-01T00:00:00Z';
+          s.verifiedBy = s.verifiedBy || 'usr_admin_01';
+          s.verifiedByName = s.verifiedByName || 'Rajesh Malhotra (Platform Admin)';
+          s.locationSource = s.locationSource || 'gps';
+          s.locationAccuracy = s.locationAccuracy || 8.5;
+        } else {
+          s.verificationStatus = 'PENDING_VERIFICATION';
+        }
+      }
+      // Attach active change request if pending
+      if (!s.activeChangeRequest) {
+        const pendingCR = Array.from(this.shopChangeRequests.values()).find(
+          (cr) => cr.shopId === s.id && cr.status === 'PENDING'
+        );
+        if (pendingCR) {
+          s.activeChangeRequest = pendingCR;
+          s.verificationStatus = 'CHANGE_REQUEST_PENDING';
+        }
+      }
+    });
 
     // Load Master Catalogue items
     this.masterProducts.clear();
@@ -224,10 +278,10 @@ class Database {
     if (!customerAvatar) {
       const cust = this.users.get(o.customerId) ||
         Array.from(this.users.values()).find(
-          (u) => u.fullName?.toLowerCase() === o.customerName?.toLowerCase() || u.phone === o.customerPhone
+          (u) => (o.customerName && u.fullName && u.fullName.toLowerCase() === o.customerName.toLowerCase()) || (u.phone && u.phone === o.customerPhone)
         ) ||
         seedUsers.find(
-          (u) => u.fullName?.toLowerCase() === o.customerName?.toLowerCase() || u.phone === o.customerPhone
+          (u) => (o.customerName && u.fullName && u.fullName.toLowerCase() === o.customerName.toLowerCase()) || (u.phone && u.phone === o.customerPhone)
         );
       if (cust?.avatarUrl) {
         customerAvatar = cust.avatarUrl;
@@ -239,10 +293,10 @@ class Database {
       if (!productImage) {
         const prod = this.products.get(item.productId) ||
           Array.from(this.products.values()).find(
-            (p) => p.name?.toLowerCase() === item.productName?.toLowerCase()
+            (p) => Boolean(item.productName && p.name && p.name.toLowerCase() === item.productName.toLowerCase())
           ) ||
           seedProducts.find(
-            (p) => p.name?.toLowerCase() === item.productName?.toLowerCase()
+            (p) => Boolean(item.productName && p.name && p.name.toLowerCase() === item.productName.toLowerCase())
           );
         if (prod) {
           productImage = prod.imageUrl;
@@ -289,6 +343,7 @@ class Database {
         aiDrafts: Array.from(this.aiDrafts.values()),
         sellerInvitations: Array.from(this.sellerInvitations.values()),
         masterProducts: Array.from(this.masterProducts.values()),
+        shopChangeRequests: Array.from(this.shopChangeRequests.values()),
       };
 
       const dir = path.dirname(this.persistenceFilePath);
@@ -338,7 +393,28 @@ class Database {
       // Development / Staging / Demo / Testing mode with rich fixture dataset
       seedUsers.forEach((u) => this.users.set(u.id, { ...u }));
       seedMarkets.forEach((m) => this.markets.set(m.id, { ...m }));
-      seedShops.forEach((s) => this.shops.set(s.id, { ...s }));
+      seedShops.forEach((s) => {
+        const profilePhoto = s.profilePhotoUrl || s.logoImageUrl || s.photoUrl;
+        const coverPhoto = s.coverPhotoUrl || s.bannerImageUrl || s.bannerUrl;
+        const migrated: Shop = {
+          ...s,
+          profilePhotoUrl: profilePhoto,
+          photoUrl: s.photoUrl || profilePhoto,
+          logoImageUrl: s.logoImageUrl || profilePhoto,
+          coverPhotoUrl: coverPhoto,
+          coverPhotos: s.coverPhotos && s.coverPhotos.length > 0 ? s.coverPhotos : (coverPhoto ? [coverPhoto] : undefined),
+          bannerImageUrl: s.bannerImageUrl || coverPhoto,
+          bannerUrl: s.bannerUrl || coverPhoto,
+          verificationStatus: s.verificationStatus || ((s.isVerifiedByAdmin && s.isActive) ? 'VERIFIED' : 'PENDING_VERIFICATION'),
+          verifiedAt: s.verifiedAt || (s.isVerifiedByAdmin ? '2026-08-01T00:00:00Z' : undefined),
+          verifiedBy: s.verifiedBy || (s.isVerifiedByAdmin ? 'usr_admin_01' : undefined),
+          verifiedByName: s.verifiedByName || (s.isVerifiedByAdmin ? 'Rajesh Malhotra (Platform Admin)' : undefined),
+          locationSource: s.locationSource || 'gps',
+          locationAccuracy: s.locationAccuracy || 8.5,
+          locationUpdatedAt: s.locationUpdatedAt || s.updatedAt,
+        };
+        this.shops.set(s.id, migrated);
+      });
       seedProducts.forEach((p) => this.products.set(p.id, { ...p }));
       seedOrders.forEach((o) => this.orders.set(o.id, { ...o }));
       seedShoppingRequests.forEach((sr) => this.shoppingRequests.set(sr.id, { ...sr }));
@@ -427,13 +503,23 @@ class Database {
     return this.saveUser(user);
   }
 
-  public updateUserProfile(userId: string, data: Partial<Pick<User, 'fullName' | 'email' | 'phone' | 'avatarUrl'>>): User {
+  public updateUserProfile(userId: string, data: Partial<Pick<User, 'fullName' | 'email' | 'phone' | 'avatarUrl' | 'profilePhotoUrl' | 'coverPhotoUrl'>>): User {
     const user = this.getUserById(userId);
     if (!user) throw new Error('User not found');
     if (data.fullName !== undefined) user.fullName = data.fullName;
     if (data.email !== undefined) user.email = data.email;
     if (data.phone !== undefined) user.phone = data.phone;
-    if (data.avatarUrl !== undefined) user.avatarUrl = data.avatarUrl;
+    if (data.avatarUrl !== undefined) {
+      user.avatarUrl = data.avatarUrl;
+      user.profilePhotoUrl = data.avatarUrl;
+    }
+    if (data.profilePhotoUrl !== undefined) {
+      user.profilePhotoUrl = data.profilePhotoUrl;
+      user.avatarUrl = data.profilePhotoUrl;
+    }
+    if (data.coverPhotoUrl !== undefined) {
+      user.coverPhotoUrl = data.coverPhotoUrl;
+    }
     return this.saveUser(user);
   }
 
@@ -509,7 +595,316 @@ class Database {
       ...updates,
       updatedAt: new Date().toISOString(),
     };
+    if (updates.profilePhotoUrl !== undefined) {
+      merged.profilePhotoUrl = updates.profilePhotoUrl;
+      merged.photoUrl = updates.profilePhotoUrl;
+      merged.logoImageUrl = updates.profilePhotoUrl;
+    } else if (updates.photoUrl !== undefined) {
+      merged.photoUrl = updates.photoUrl;
+      merged.profilePhotoUrl = updates.photoUrl;
+      merged.logoImageUrl = updates.photoUrl;
+    }
+    if (updates.coverPhotoUrl !== undefined) {
+      merged.coverPhotoUrl = updates.coverPhotoUrl;
+      merged.bannerUrl = updates.coverPhotoUrl;
+      merged.bannerImageUrl = updates.coverPhotoUrl;
+    } else if (updates.bannerUrl !== undefined) {
+      merged.bannerUrl = updates.bannerUrl;
+      merged.coverPhotoUrl = updates.bannerUrl;
+      merged.bannerImageUrl = updates.bannerUrl;
+    }
+    if ((updates as any).coverPhotos !== undefined) {
+      (merged as any).coverPhotos = (updates as any).coverPhotos;
+    }
     return this.saveShop(merged);
+  }
+
+  // --- Shop Verification & Change Requests ---
+  public getShopChangeRequests(shopId?: string): ShopChangeRequest[] {
+    const list = Array.from(this.shopChangeRequests.values());
+    if (shopId) {
+      return list.filter((cr) => cr.shopId === shopId);
+    }
+    return list.sort((a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime());
+  }
+
+  public getShopChangeRequestById(id: string): ShopChangeRequest | undefined {
+    return this.shopChangeRequests.get(id);
+  }
+
+  public saveShopChangeRequest(cr: ShopChangeRequest): ShopChangeRequest {
+    this.shopChangeRequests.set(cr.id, cr);
+    this.flushToDisk();
+    return cr;
+  }
+
+  public verifyShop(shopId: string, adminId: string, adminName: string): Shop {
+    const shop = this.getShopById(shopId);
+    if (!shop) throw new Error(`Shop ${shopId} not found`);
+
+    shop.verificationStatus = 'VERIFIED';
+    shop.isVerifiedByAdmin = true;
+    shop.isActive = true;
+    shop.verifiedAt = new Date().toISOString();
+    shop.verifiedBy = adminId;
+    shop.verifiedByName = adminName;
+    shop.rejectionReason = undefined;
+
+    this.saveShop(shop);
+    return shop;
+  }
+
+  public rejectShop(shopId: string, adminId: string, rejectionReason: string): Shop {
+    const shop = this.getShopById(shopId);
+    if (!shop) throw new Error(`Shop ${shopId} not found`);
+
+    shop.verificationStatus = 'REJECTED';
+    shop.isVerifiedByAdmin = false;
+    shop.isActive = false;
+    shop.rejectionReason = rejectionReason;
+
+    this.saveShop(shop);
+    return shop;
+  }
+
+  public submitShopChangeRequest(
+    shopId: string,
+    sellerId: string,
+    requestedChanges: any,
+    reason: string
+  ): { shop: Shop; changeRequest: ShopChangeRequest } {
+    const shop = this.getShopById(shopId);
+    if (!shop) throw new Error(`Shop ${shopId} not found`);
+
+    const seller = this.getUserById(sellerId);
+    const crId = `cr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    const currentSnapshot = {
+      name: shop.name,
+      category: shop.category,
+      description: shop.description,
+      phone: shop.phone,
+      email: shop.email,
+      whatsapp: shop.whatsapp,
+      address: shop.address,
+      pincode: shop.pincode,
+      postalData: shop.postalData,
+      coordinates: shop.coordinates,
+      locationAccuracy: shop.locationAccuracy,
+      locationSource: shop.locationSource,
+      photoUrl: shop.photoUrl,
+      profilePhotoUrl: shop.profilePhotoUrl,
+      coverPhotoUrl: shop.coverPhotoUrl,
+      upiPayoutId: shop.upiPayoutId,
+      paymentName: shop.paymentName,
+    };
+
+    const changeRequest: ShopChangeRequest = {
+      id: crId,
+      shopId: shop.id,
+      sellerId: sellerId,
+      sellerName: seller?.fullName || 'Seller',
+      shopName: shop.name,
+      requestedAt: new Date().toISOString(),
+      status: 'PENDING',
+      reason,
+      requestedChanges,
+      currentSnapshot,
+    };
+
+    this.shopChangeRequests.set(crId, changeRequest);
+
+    // Update shop state to CHANGE_REQUEST_PENDING, but keep existing verified details intact in the shop and marketplace!
+    shop.verificationStatus = 'CHANGE_REQUEST_PENDING';
+    shop.activeChangeRequest = changeRequest;
+
+    this.saveShop(shop);
+    this.flushToDisk();
+
+    return { shop, changeRequest };
+  }
+
+  public reviewShopChangeRequest(
+    requestId: string,
+    adminId: string,
+    action: 'APPROVE' | 'REJECT',
+    adminNotes?: string,
+    rejectionReason?: string
+  ): { shop: Shop; changeRequest: ShopChangeRequest } {
+    const cr = this.shopChangeRequests.get(requestId);
+    if (!cr) throw new Error(`Change request ${requestId} not found`);
+
+    const shop = this.getShopById(cr.shopId);
+    if (!shop) throw new Error(`Shop ${cr.shopId} not found`);
+
+    cr.reviewedAt = new Date().toISOString();
+    cr.reviewedBy = adminId;
+    cr.adminNotes = adminNotes;
+
+    if (action === 'APPROVE') {
+      cr.status = 'APPROVED';
+      const req = cr.requestedChanges;
+
+      if (req.name) shop.name = req.name;
+      if (req.category) shop.category = req.category;
+      if (req.description !== undefined) shop.description = req.description;
+      if (req.phone) shop.phone = req.phone;
+      if (req.email !== undefined) shop.email = req.email;
+      if (req.whatsapp !== undefined) shop.whatsapp = req.whatsapp;
+      if (req.address) shop.address = req.address;
+      if (req.pincode) shop.pincode = req.pincode;
+      if (req.postalData) shop.postalData = req.postalData;
+      if (req.coordinates) {
+        shop.coordinates = req.coordinates;
+        shop.locationUpdatedAt = new Date().toISOString();
+      }
+      if (req.locationAccuracy !== undefined) shop.locationAccuracy = req.locationAccuracy;
+      if (req.locationSource) shop.locationSource = req.locationSource;
+      if (req.profilePhotoUrl !== undefined || req.photoUrl !== undefined) {
+        const photo = req.profilePhotoUrl || req.photoUrl;
+        shop.profilePhotoUrl = photo;
+        shop.photoUrl = photo;
+        shop.logoImageUrl = photo;
+      }
+      if (req.coverPhotoUrl !== undefined || req.bannerUrl !== undefined) {
+        const cover = req.coverPhotoUrl || req.bannerUrl;
+        shop.coverPhotoUrl = cover;
+        shop.bannerUrl = cover;
+        shop.bannerImageUrl = cover;
+      }
+      if (req.upiPayoutId !== undefined) shop.upiPayoutId = req.upiPayoutId;
+      if (req.paymentName !== undefined) shop.paymentName = req.paymentName;
+
+      shop.verificationStatus = 'VERIFIED';
+      shop.activeChangeRequest = undefined;
+    } else {
+      cr.status = 'REJECTED';
+      cr.rejectionReason = rejectionReason;
+
+      shop.verificationStatus = 'VERIFIED';
+      shop.activeChangeRequest = undefined;
+    }
+
+    this.shopChangeRequests.set(cr.id, cr);
+    this.saveShop(shop);
+    this.flushToDisk();
+
+    return { shop, changeRequest: cr };
+  }
+
+  // --- Seller Self-Registration & Onboarding Flow ---
+  public registerSellerAndShop(params: {
+    sellerName: string;
+    phone: string;
+    email?: string;
+    shopName: string;
+    category: string;
+    description?: string;
+    address: string;
+    pincode?: string;
+    postalData?: any;
+    coordinates: { lat: number; lng: number };
+    locationAccuracy?: number;
+    locationSource?: LocationSource;
+    upiPayoutId?: string;
+    paymentName?: string;
+    whatsapp?: string;
+    photoUrl?: string;
+    coverPhotoUrl?: string;
+    marketId?: string;
+  }): { seller: User; shop: Shop } {
+    const existingUser = this.getUserByPhone(params.phone);
+    let sellerId = existingUser?.id;
+    let seller = existingUser;
+
+    if (!seller) {
+      sellerId = `user-seller-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      seller = {
+        id: sellerId,
+        fullName: params.sellerName,
+        phone: params.phone,
+        email: params.email || `${params.phone}@seller.localmart.in`,
+        role: UserRole.SELLER,
+        addresses: [],
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.users.set(seller.id, seller);
+    }
+
+    const shopId = `shop-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    seller.shopId = shopId;
+    this.saveUser(seller);
+
+    // Fallback market ID if not supplied
+    const defaultMarketId = params.marketId || Array.from(this.markets.keys())[0] || 'mkt_dadar_central';
+
+    const photo = params.photoUrl || 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80';
+    const cover = params.coverPhotoUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=1200&auto=format&fit=crop&q=80';
+
+    const newShop: Shop = {
+      id: shopId,
+      sellerId: seller.id,
+      marketId: defaultMarketId,
+      name: params.shopName,
+      description: params.description || `${params.shopName} - Quality ${params.category} store`,
+      category: params.category,
+      tagline: 'Your Trusted Neighborhood Shop',
+      phone: params.phone,
+      email: params.email,
+      whatsapp: params.whatsapp,
+      address: params.address,
+      pincode: params.pincode,
+      postalData: params.postalData,
+      coordinates: params.coordinates,
+      locationAccuracy: params.locationAccuracy,
+      locationSource: params.locationSource || 'gps',
+      locationUpdatedAt: new Date().toISOString(),
+      photoUrl: photo,
+      profilePhotoUrl: photo,
+      logoImageUrl: photo,
+      coverPhotoUrl: cover,
+      bannerUrl: cover,
+      bannerImageUrl: cover,
+      upiPayoutId: params.upiPayoutId,
+      paymentName: params.paymentName,
+      verificationStatus: 'PENDING_VERIFICATION',
+      isVerifiedByAdmin: false,
+      isActive: false, // Inactive until admin verifies
+      operatingHours: {
+        openTime: '08:00',
+        closeTime: '21:00',
+        closedOnDays: [],
+        openDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      },
+      fulfillment: {
+        pickupEnabled: true,
+        deliveryEnabled: true,
+        minOrderValueForDelivery: 99,
+        deliveryFee: 25,
+        freeDeliveryThreshold: 499,
+        maxDeliveryRadiusKm: 6.0,
+        estimatedPreparationTimeMinutes: 20,
+      },
+      financials: {
+        billingMode: 'COMMISSION' as any,
+        customCommissionPercentage: 5.0,
+        payoutUpiId: params.upiPayoutId,
+      },
+      isOpen: true,
+      isOpenNow: true,
+      isAcceptingOrders: true,
+      averageRating: 5.0,
+      totalReviewsCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.shops.set(shopId, newShop);
+    this.flushToDisk();
+
+    return { seller, shop: newShop };
   }
 
   // --- Products (Strict Shop Isolation) ---
@@ -548,22 +943,23 @@ class Database {
   }
 
   public searchProducts(query: string, marketId?: string): { product: Product; shop: Shop }[] {
-    const q = query.toLowerCase().trim();
+    const q = (query || '').toLowerCase().trim();
+    if (!q) return [];
     const results: { product: Product; shop: Shop }[] = [];
 
     for (const product of this.products.values()) {
-      if (!product.isAvailable) continue;
+      if (!product || !product.isAvailable) continue;
       const shop = this.shops.get(product.shopId);
       if (!shop || !shop.isActive) continue;
       if (marketId && shop.marketId !== marketId) continue;
 
       const matchesProduct =
-        product.name.toLowerCase().includes(q) ||
-        (product.nameHindi && product.nameHindi.toLowerCase().includes(q)) ||
-        product.category.toLowerCase().includes(q) ||
-        (product.tags && product.tags.some((t) => t.toLowerCase().includes(q)));
+        (product.name || '').toLowerCase().includes(q) ||
+        (product.nameHindi ? product.nameHindi.toLowerCase().includes(q) : false) ||
+        (product.category || '').toLowerCase().includes(q) ||
+        (product.tags && product.tags.some((t) => (t || '').toLowerCase().includes(q)));
 
-      const matchesShop = shop.name.toLowerCase().includes(q) || shop.category.toLowerCase().includes(q);
+      const matchesShop = (shop.name || '').toLowerCase().includes(q) || (shop.category || '').toLowerCase().includes(q);
 
       if (matchesProduct || matchesShop) {
         results.push({ product, shop });
@@ -1045,6 +1441,9 @@ class Database {
       ...updates,
       updatedAt: new Date().toISOString(),
     };
+    if (updates.maxProducts === null || (updates as any).maxProducts === '' || (updates as any).unlimitedProducts) {
+      delete updated.maxProducts;
+    }
     this.subscriptionPlans.set(planId, updated);
     this.flushToDisk();
     return updated;
@@ -1336,8 +1735,15 @@ class Database {
       },
       isOpen: true,
       isOpenNow: true,
+      verificationStatus: 'VERIFIED',
       isVerifiedByAdmin: true,
       isActive: true,
+      verifiedAt: new Date().toISOString(),
+      verifiedBy: params.adminId,
+      verifiedByName: 'Admin',
+      locationSource: 'gps',
+      locationAccuracy: 10,
+      locationUpdatedAt: new Date().toISOString(),
       averageRating: 4.8,
       totalReviewsCount: 0,
       createdAt: new Date().toISOString(),

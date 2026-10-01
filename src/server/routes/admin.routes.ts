@@ -25,7 +25,12 @@ router.patch('/admin/markets/:marketId/status', AdminController.toggleMarketStat
 // Shop Management
 router.get('/admin/shops', AdminController.listShops);
 router.patch('/admin/shops/:shopId/status', AdminController.updateShopStatus);
+router.post('/admin/shops/:shopId/verify', AdminController.verifyShop);
+router.post('/admin/shops/:shopId/reject', AdminController.rejectShop);
+router.get('/admin/change-requests', AdminController.listChangeRequests);
+router.post('/admin/change-requests/:requestId/review', AdminController.reviewChangeRequest);
 router.patch('/admin/shops/:shopId', AdminController.updateShopDetails);
+router.patch('/admin/shops/:shopId/photos', AdminController.manageShopPhotos);
 router.patch('/admin/shops/:shopId/fulfillment', AdminController.updateShopFulfillment);
 router.patch('/admin/shops/:shopId/commission', AdminController.setShopCommission);
 router.get('/admin/shops/:shopId/settlement', AdminController.getSellerSettlementSummary);
@@ -37,6 +42,7 @@ router.patch('/admin/sellers/:sellerId/status', AdminController.toggleSellerStat
 // Customer Management
 router.get('/admin/customers', AdminController.listCustomers);
 router.patch('/admin/customers/:customerId/status', AdminController.toggleCustomerStatus);
+router.patch('/admin/users/:userId/photos', AdminController.manageUserPhotos);
 
 // Product Management
 router.get('/admin/products', AdminController.listProducts);

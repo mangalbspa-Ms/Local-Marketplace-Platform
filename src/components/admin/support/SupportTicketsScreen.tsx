@@ -71,13 +71,15 @@ export const SupportTicketsScreen: React.FC = () => {
     }
   };
 
-  const filtered = tickets.filter(
-    (t) =>
-      t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.orderId && t.orderId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      t.userPhone.includes(searchQuery)
-  );
+  const filtered = tickets.filter((t) => {
+    const q = (searchQuery || '').toLowerCase();
+    return (
+      (t?.subject || '').toLowerCase().includes(q) ||
+      (t?.userName || '').toLowerCase().includes(q) ||
+      (t?.orderId ? t.orderId.toLowerCase().includes(q) : false) ||
+      (t?.userPhone || '').includes(searchQuery || '')
+    );
+  });
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -91,18 +93,29 @@ export const SupportTicketsScreen: React.FC = () => {
     }
   };
 
+  const openCount = tickets.filter((t) => t.status === 'OPEN').length;
+  const inProgressCount = tickets.filter((t) => t.status === 'IN_PROGRESS').length;
+  const resolvedCount = tickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-indigo-400" />
-            <span>Support & Dispute Mediation</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Handle customer delivery disputes, merchant queries, and quality complaints.
-          </p>
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <HelpCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+              <span>Support & Dispute Mediation</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                {filtered.length} Tickets
+              </span>
+            </h2>
+            <p className="text-[11px] text-slate-400">
+              Handle customer delivery disputes, merchant queries, and quality complaints
+            </p>
+          </div>
         </div>
 
         {/* Status Filter */}
@@ -110,7 +123,7 @@ export const SupportTicketsScreen: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 font-bold"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-semibold"
           >
             <option value="ALL">All Tickets</option>
             <option value="OPEN">Open Only</option>
@@ -121,104 +134,147 @@ export const SupportTicketsScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* 3 Compact KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Open Disputes</p>
+            <h3 className="text-lg font-black text-rose-400 mt-0.5">{openCount}</h3>
+            <p className="text-[10px] text-rose-400/70">Requires urgent response</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">In Investigation</p>
+            <h3 className="text-lg font-black text-amber-400 mt-0.5">{inProgressCount}</h3>
+            <p className="text-[10px] text-amber-400/70">Under mediation review</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+            <Clock className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Resolved Cases</p>
+            <h3 className="text-lg font-black text-emerald-400 mt-0.5">{resolvedCount}</h3>
+            <p className="text-[10px] text-emerald-400/70">Satisfied and closed</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
       {/* Search Input */}
-      <div className="relative max-w-md">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search tickets by Subject, User Name, Phone or Order ID..."
-          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-2.5 pl-10 text-xs text-white placeholder-slate-500 outline-none transition"
-        />
-        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tickets by Subject, User Name, Phone or Order ID..."
+            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 pl-8 text-xs text-white placeholder-slate-500 outline-none transition"
+          />
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+        </div>
       </div>
 
       {/* Tickets List */}
       {isLoading ? (
-        <div className="p-8 text-center text-xs text-slate-400 font-bold">Loading support tickets...</div>
+        <div className="p-8 text-center text-xs text-slate-400 font-bold bg-slate-900/60 border border-slate-800 rounded-xl">
+          <Clock className="w-5 h-5 mx-auto mb-2 text-indigo-400 animate-spin" />
+          Loading support tickets...
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-xs text-slate-400">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-8 text-center text-xs text-slate-400">
           No support dispute tickets found.
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((ticket) => (
             <div
               key={ticket.id}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-lg flex flex-col justify-between"
+              className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 sm:p-3.5 shadow-sm flex flex-col justify-between hover:border-slate-700 transition"
             >
-              <div>
+              <div className="space-y-2">
                 {/* Header */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black font-mono text-slate-400">{ticket.id}</span>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black font-mono text-slate-400">#{ticket.id}</span>
                     <span
-                      className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase ${getPriorityBadge(
+                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border uppercase ${getPriorityBadge(
                         ticket.priority
                       )}`}
                     >
-                      {ticket.priority} PRIORITY
+                      {ticket.priority}
                     </span>
                   </div>
 
                   <span
-                    className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md border uppercase ${
                       ticket.status === 'RESOLVED' || ticket.status === 'CLOSED'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                         : ticket.status === 'IN_PROGRESS'
-                        ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
-                        : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                        ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+                        : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
                     }`}
                   >
                     {ticket.status}
                   </span>
                 </div>
 
-                <h3 className="text-sm font-black text-white mb-1">{ticket.subject}</h3>
-                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-slate-800/60 mb-3">
+                <h3 className="text-xs sm:text-sm font-extrabold text-white">{ticket.subject}</h3>
+                <p className="text-[11px] text-slate-300 leading-relaxed bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
                   "{ticket.description}"
                 </p>
 
                 {/* User & Order Meta */}
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 mb-3">
+                <div className="grid grid-cols-2 gap-2 text-xs p-2 rounded-lg bg-slate-950/40 border border-slate-800/50">
                   <div>
-                    <div className="text-[10px] uppercase font-bold text-slate-500">Raised By</div>
-                    <div className="font-bold text-white flex items-center gap-1 mt-0.5">
+                    <div className="text-[9px] uppercase font-bold text-slate-400">Raised By</div>
+                    <div className="font-bold text-white flex items-center gap-1 mt-0.5 truncate text-[11px]">
                       {ticket.userRole === 'SELLER' ? (
-                        <Store className="w-3.5 h-3.5 text-indigo-400" />
+                        <Store className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       ) : (
-                        <User className="w-3.5 h-3.5 text-teal-400" />
+                        <User className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                       )}
-                      <span>{ticket.userName}</span>
+                      <span className="truncate">{ticket.userName}</span>
                     </div>
-                    <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Phone className="w-3 h-3 text-slate-500" />
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                      <Phone className="w-3 h-3 text-slate-500 shrink-0" />
                       <span>{ticket.userPhone}</span>
                     </div>
                   </div>
 
                   {ticket.orderId && (
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-slate-500">Linked Order</div>
-                      <div className="font-mono font-bold text-indigo-300 mt-0.5">{ticket.orderId}</div>
+                      <div className="text-[9px] uppercase font-bold text-slate-400">Linked Order</div>
+                      <div className="font-mono font-bold text-indigo-300 text-[11px] mt-0.5 truncate">
+                        #{ticket.orderId}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Admin notes */}
                 {ticket.adminNotes && (
-                  <div className="p-2.5 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-200 mb-3">
-                    <span className="font-bold text-indigo-300">Admin Resolution: </span>
+                  <div className="p-2 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-[11px] text-indigo-200">
+                    <span className="font-bold text-indigo-300">Admin Note: </span>
                     <span>{ticket.adminNotes}</span>
                   </div>
                 )}
               </div>
 
               {/* Action */}
-              <div className="pt-2">
+              <div className="pt-2.5">
                 <button
                   onClick={() => handleOpenResolve(ticket)}
-                  className="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                  className="w-full py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-98 border border-slate-700/60"
                 >
                   <Edit2 className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Update Status & Resolution Notes</span>
@@ -239,10 +295,12 @@ export const SupportTicketsScreen: React.FC = () => {
                 <span>Ticket Resolution Protocol</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setSelectedTicket(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-3.5 h-3.5" />
+                <span>Close</span>
               </button>
             </div>
 

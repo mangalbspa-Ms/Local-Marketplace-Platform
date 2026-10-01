@@ -73,7 +73,9 @@ export const MasterCatalogBulkAddModal: React.FC<MasterCatalogBulkAddModalProps>
     });
 
     if (existingProductNames) {
-      existingProductNames.forEach((n) => names.add(n.trim().toLowerCase()));
+      existingProductNames.forEach((n) => {
+        if (n) names.add(n.trim().toLowerCase());
+      });
     }
 
     return { ids, names, hindiNames };
@@ -81,8 +83,9 @@ export const MasterCatalogBulkAddModal: React.FC<MasterCatalogBulkAddModalProps>
 
   // Check if a master product is already in the shop
   const isProductAlreadyInShop = (item: MasterProduct): boolean => {
-    if (existingIdentifiers.ids.has(item.id)) return true;
-    if (existingIdentifiers.names.has(item.name.trim().toLowerCase())) return true;
+    if (!item) return false;
+    if (item.id && existingIdentifiers.ids.has(item.id)) return true;
+    if (item.name && existingIdentifiers.names.has(item.name.trim().toLowerCase())) return true;
     if (item.nameHindi && existingIdentifiers.hindiNames.has(item.nameHindi.trim().toLowerCase())) return true;
     return false;
   };

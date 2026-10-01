@@ -94,11 +94,21 @@ export class SubscriptionService {
       throw new Error(`Subscription plan ${planId} not found.`);
     }
 
+    if (updates.name !== undefined && typeof updates.name === 'string') {
+      updates.name = updates.name.trim();
+    }
     if (updates.price !== undefined) {
-      updates.price = Math.round(Math.max(0, updates.price) * 100) / 100;
+      updates.price = Math.round(Math.max(0, Number(updates.price)) * 100) / 100;
+      updates.monthlyPrice = updates.price;
     }
     if (updates.commissionPercentage !== undefined) {
-      updates.commissionPercentage = Math.round(Math.max(0, updates.commissionPercentage) * 100) / 100;
+      updates.commissionPercentage = Math.round(Math.max(0, Math.min(100, Number(updates.commissionPercentage))) * 100) / 100;
+    }
+    if (updates.interval !== undefined) {
+      updates.billingInterval = updates.interval;
+    }
+    if (updates.features !== undefined && Array.isArray(updates.features)) {
+      updates.features = updates.features.map((f) => String(f).trim()).filter(Boolean);
     }
 
     const updated = db.updateSubscriptionPlan(planId, updates);

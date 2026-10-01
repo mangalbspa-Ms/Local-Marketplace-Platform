@@ -1,0 +1,8 @@
+{
+  "appId": "com.localmandi.platform",
+  "appName": "Local Mandi Platform",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

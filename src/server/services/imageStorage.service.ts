@@ -37,7 +37,7 @@ export class ImageStorageService {
    */
   public static async uploadImage(
     dataUrlOrBase64: string,
-    folder: 'products' | 'shops' | 'avatars' = 'products',
+    folder: 'products' | 'shops' | 'avatars' | 'covers' | 'profiles' = 'products',
     customFilename?: string
   ): Promise<UploadResult> {
     if (!dataUrlOrBase64 || typeof dataUrlOrBase64 !== 'string') {

@@ -110,3 +110,280 @@
   transform: translateX(0);
   pointer-events: auto;
 }
+
+/* ========================================================================== */
+/* SELLER APP LIGHT MODE THEME                                                */
+/* Scoped exclusively to .seller-theme-light so Customer/Admin remain untouched */
+/* ========================================================================== */
+
+.seller-theme-light {
+  color-scheme: light;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* 1. Deep Dark Backgrounds -> Crisp White Cards & Surfaces */
+.seller-theme-light [class*="bg-[#070e24]"],
+.seller-theme-light [class*="bg-[#0b142c]"],
+.seller-theme-light [class*="bg-[#050b1a]"],
+.seller-theme-light [class*="bg-[#08122d]"],
+.seller-theme-light [class*="bg-[#0e1d42]"],
+.seller-theme-light [class*="bg-[#0c1a3d]"],
+.seller-theme-light [class*="bg-[#060c20]"],
+.seller-theme-light [class*="bg-[#040816]"],
+.seller-theme-light [class*="bg-slate-950"],
+.seller-theme-light [class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+}
+
+/* 2. Secondary Card Backgrounds & Section Dividers */
+.seller-theme-light [class*="bg-slate-800"] {
+  background-color: #f1f5f9 !important;
+}
+
+.seller-theme-light [class*="bg-slate-700"] {
+  background-color: #e2e8f0 !important;
+}
+
+/* 3. Subtle Badges & Pill Chips */
+.seller-theme-light [class*="bg-cyan-950"] {
+  background-color: rgba(2, 132, 199, 0.1) !important;
+}
+
+.seller-theme-light [class*="bg-emerald-950"] {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+
+.seller-theme-light [class*="bg-rose-950"] {
+  background-color: rgba(225, 29, 72, 0.1) !important;
+}
+
+.seller-theme-light [class*="bg-amber-950"] {
+  background-color: rgba(217, 119, 6, 0.12) !important;
+}
+
+/* 4. Text Contrast Adjustments */
+.seller-theme-light [class*="text-white"]:not(
+  [class*="bg-emerald-"],
+  [class*="bg-cyan-600"],
+  [class*="bg-cyan-500"],
+  [class*="bg-rose-"],
+  [class*="bg-blue-"],
+  [class*="bg-indigo-"],
+  [class*="from-emerald-"],
+  [class*="from-teal-"]
+) {
+  color: #0f172a !important;
+}
+
+.seller-theme-light [class*="text-slate-100"],
+.seller-theme-light [class*="text-slate-200"] {
+  color: #1e293b !important;
+}
+
+.seller-theme-light [class*="text-slate-300"],
+.seller-theme-light [class*="text-slate-400"] {
+  color: #475569 !important;
+}
+
+.seller-theme-light [class*="text-slate-500"] {
+  color: #64748b !important;
+}
+
+.seller-theme-light [class*="text-cyan-300"],
+.seller-theme-light [class*="text-cyan-200"],
+.seller-theme-light [class*="text-cyan-400"] {
+  color: #0284c7 !important;
+}
+
+.seller-theme-light [class*="text-emerald-300"],
+.seller-theme-light [class*="text-emerald-400"] {
+  color: #047857 !important;
+}
+
+.seller-theme-light [class*="text-rose-300"],
+.seller-theme-light [class*="text-rose-400"] {
+  color: #be123c !important;
+}
+
+.seller-theme-light [class*="text-amber-300"],
+.seller-theme-light [class*="text-amber-400"] {
+  color: #b45309 !important;
+}
+
+/* 5. Border Color Refinement */
+.seller-theme-light [class*="border-cyan-500"],
+.seller-theme-light [class*="border-cyan-400"] {
+  border-color: rgba(2, 132, 199, 0.22) !important;
+}
+
+.seller-theme-light [class*="border-slate-800"],
+.seller-theme-light [class*="border-slate-700"] {
+  border-color: #e2e8f0 !important;
+}
+
+.seller-theme-light [class*="border-cyan-500/10"],
+.seller-theme-light [class*="border-cyan-500/20"] {
+  border-color: #f1f5f9 !important;
+}
+
+/* 6. Form Controls & Inputs */
+.seller-theme-light input,
+.seller-theme-light textarea,
+.seller-theme-light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.seller-theme-light input::placeholder,
+.seller-theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* 7. Elevation for Cards, Dropdowns & Modals */
+.seller-theme-light #seller-quick-menu,
+.seller-theme-light #seller-home-dashboard > div,
+.seller-theme-light [id^="modal-"],
+.seller-theme-light .rounded-2xl,
+.seller-theme-light .rounded-3xl {
+  box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* 8. Fixed Bars (Header & Bottom Nav) */
+#seller-top-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  width: 100% !important;
+  transform: none !important;
+  margin-top: 0 !important;
+}
+
+.seller-theme-light #seller-top-header {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.seller-theme-light #seller-bottom-nav {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 9. Preserve Solid Colored Buttons & Badges */
+.seller-theme-light button[class*="bg-emerald-600"],
+.seller-theme-light button[class*="bg-emerald-500"],
+.seller-theme-light button[class*="bg-cyan-600"],
+.seller-theme-light button[class*="bg-cyan-500"],
+.seller-theme-light button[class*="bg-rose-600"],
+.seller-theme-light button[class*="bg-rose-500"],
+.seller-theme-light button[class*="bg-indigo-600"],
+.seller-theme-light button[class*="bg-blue-600"],
+.seller-theme-light a[class*="bg-emerald-600"],
+.seller-theme-light [class*="from-emerald-"] {
+  color: #ffffff !important;
+}
+
+.seller-theme-light button[class*="bg-emerald-600"] *,
+.seller-theme-light button[class*="bg-cyan-600"] *,
+.seller-theme-light button[class*="bg-rose-600"] *,
+.seller-theme-light [class*="from-emerald-"] * {
+  color: #ffffff !important;
+}
+
+/* 10. Modal Backdrop Overlay */
+.seller-theme-light [class*="bg-black/80"],
+.seller-theme-light [class*="bg-black/75"],
+.seller-theme-light [class*="bg-black/70"] {
+  background-color: rgba(15, 23, 42, 0.55) !important;
+}
+
+/* ==========================================================================
+   ADMIN APP THEME: Light Mode Support (.admin-theme-light)
+   ========================================================================== */
+.admin-theme-light {
+  color-scheme: light;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light [class*="bg-slate-950"] {
+  background-color: #f8fafc !important;
+}
+
+.admin-theme-light [class*="bg-slate-900"],
+.admin-theme-light [class*="bg-slate-900/95"],
+.admin-theme-light [class*="bg-slate-900/90"],
+.admin-theme-light [class*="bg-slate-900/80"],
+.admin-theme-light [class*="bg-slate-900/60"] {
+  background-color: #ffffff !important;
+}
+
+.admin-theme-light [class*="bg-slate-800"],
+.admin-theme-light [class*="bg-slate-800/80"],
+.admin-theme-light [class*="bg-slate-800/60"],
+.admin-theme-light [class*="bg-slate-800/40"] {
+  background-color: #f1f5f9 !important;
+}
+
+.admin-theme-light [class*="bg-slate-700"] {
+  background-color: #e2e8f0 !important;
+}
+
+.admin-theme-light [class*="border-slate-800"],
+.admin-theme-light [class*="border-slate-800/80"],
+.admin-theme-light [class*="border-slate-800/70"],
+.admin-theme-light [class*="border-slate-800/60"],
+.admin-theme-light [class*="border-slate-700"],
+.admin-theme-light [class*="border-slate-700/60"] {
+  border-color: #e2e8f0 !important;
+}
+
+.admin-theme-light [class*="text-white"]:not(
+  [class*="bg-emerald-"],
+  [class*="bg-cyan-"],
+  [class*="bg-rose-"],
+  [class*="bg-blue-"],
+  [class*="bg-indigo-"],
+  [class*="text-indigo-400"],
+  [class*="text-emerald-400"],
+  [class*="text-amber-400"],
+  [class*="text-rose-400"]
+) {
+  color: #0f172a !important;
+}
+
+.admin-theme-light [class*="text-slate-100"],
+.admin-theme-light [class*="text-slate-200"] {
+  color: #1e293b !important;
+}
+
+.admin-theme-light [class*="text-slate-300"],
+.admin-theme-light [class*="text-slate-400"] {
+  color: #475569 !important;
+}
+
+.admin-theme-light [class*="text-slate-500"] {
+  color: #64748b !important;
+}
+
+.admin-theme-light input,
+.admin-theme-light textarea,
+.admin-theme-light select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-theme-light input::placeholder,
+.admin-theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.admin-theme-light [class*="bg-black/85"],
+.admin-theme-light [class*="bg-black/80"],
+.admin-theme-light [class*="bg-black/70"] {
+  background-color: rgba(15, 23, 42, 0.55) !important;
+}

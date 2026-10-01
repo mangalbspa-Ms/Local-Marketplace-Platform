@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useSellerAuth } from '../../../context/SellerAuthContext.tsx';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
+import { createSpeechRecognition } from '../../../utils/speechRecognitionHelper.ts';
 import { AIVoiceDraft, AIAuditRecord, PhotoExtractionResult } from '../../../types/ai.ts';
 
 interface AIVoiceAssistantModalProps {
@@ -69,8 +70,14 @@ export const AIVoiceAssistantModal: React.FC<AIVoiceAssistantModalProps> = ({
   // History state
   const [audits, setAudits] = useState<AIAuditRecord[]>([]);
 
-  // Speech Recognition Reference
+  // Speech Recognition Reference and buffering
   const recognitionRef = useRef<any>(null);
+  const currentUtteranceBufferRef = useRef<string>('');
+  const streamParseDebounceRef = useRef<any>(null);
+  const isSpeakingInterimRef = useRef<boolean>(false);
+  const isVoiceActiveRef = useRef<boolean>(false);
+  const isIntentionalStopRef = useRef<boolean>(false);
+  const lastProcessedFinalIndexRef = useRef<number>(0);
 
   useEffect(() => {
     if (!isOpen) {
@@ -80,7 +87,14 @@ export const AIVoiceAssistantModal: React.FC<AIVoiceAssistantModalProps> = ({
     }
   }, [isOpen]);
 
-  const stopSpeechRecognition = () => {
+  const stopSpeechRecognition = (processPending = false) => {
+    isVoiceActiveRef.current = false;
+    isIntentionalStopRef.current = true;
+    if (streamParseDebounceRef.current) {
+      clearTimeout(streamParseDebounceRef.current);
+      streamParseDebounceRef.current = null;
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onstart = null;
@@ -94,10 +108,18 @@ export const AIVoiceAssistantModal: React.FC<AIVoiceAssistantModalProps> = ({
       recognitionRef.current = null;
     }
     setIsListening(false);
+
+    if (processPending) {
+      const fullText = currentUtteranceBufferRef.current.trim();
+      if (fullText.length >= 2) {
+        handleProcessTranscript(fullText);
+      }
+    }
   };
 
   const resetState = () => {
-    stopSpeechRecognition();
+    stopSpeechRecognition(false);
+    currentUtteranceBufferRef.current = '';
     setTranscript('');
     setCurrentDraft(null);
     setSelectedPhotoBase64(null);
@@ -128,26 +150,29 @@ export const AIVoiceAssistantModal: React.FC<AIVoiceAssistantModalProps> = ({
     }
   };
 
-  // Setup Web Speech API for Hindi/English
+  // Setup Web Speech API for Hindi/English with full utterance buffering
   const toggleSpeechRecognition = () => {
     if (isListening) {
-      stopSpeechRecognition();
+      // User clicked stop: flush complete buffered utterance immediately
+      stopSpeechRecognition(true);
       return;
     }
 
-    stopSpeechRecognition();
+    stopSpeechRecognition(false);
     setError(null);
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setError('Voice recognition is not supported in this browser. Please type your command below.');
-      return;
-    }
+    currentUtteranceBufferRef.current = '';
+    lastProcessedFinalIndexRef.current = 0;
+    isVoiceActiveRef.current = true;
+    isIntentionalStopRef.current = false;
+    isSpeakingInterimRef.current = false;
 
     try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      const recognition = createSpeechRecognition();
+      if (!recognition) {
+        setError('Voice recognition is not supported in this browser. Please type your command below.');
+        return;
+      }
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
 
@@ -156,24 +181,99 @@ export const AIVoiceAssistantModal: React.FC<AIVoiceAssistantModalProps> = ({
       };
 
       recognition.onresult = (event: any) => {
-        let current = '';
-        for (let i = 0; i < event.results.length; i++) {
-          current += event.results[i][0].transcript;
+        if (!isVoiceActiveRef.current || isIntentionalStopRef.current) return;
+
+        let currentInterim = '';
+        const newFinalized: string[] = [];
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (!res || !res[0]) continue;
+          const text = res[0].transcript?.trim() || '';
+          if (!text) continue;
+
+          if (res.isFinal) {
+            if (i >= lastProcessedFinalIndexRef.current) {
+              newFinalized.push(text);
+              lastProcessedFinalIndexRef.current = i + 1;
+            }
+          } else {
+            currentInterim += (currentInterim ? ' ' : '') + text;
+          }
         }
-        setTranscript(current);
+
+        // Active vocalization: update visual display only, never trigger premature parsing
+        if (currentInterim.length > 0) {
+          isSpeakingInterimRef.current = true;
+          const display = currentUtteranceBufferRef.current
+            ? `${currentUtteranceBufferRef.current} ${currentInterim}`
+            : currentInterim;
+          setTranscript(display);
+
+          if (streamParseDebounceRef.current) {
+            clearTimeout(streamParseDebounceRef.current);
+            streamParseDebounceRef.current = null;
+          }
+        } else {
+          isSpeakingInterimRef.current = false;
+        }
+
+        // Finalized segments: accumulate into buffer and wait for natural speech completion
+        if (newFinalized.length > 0) {
+          for (const seg of newFinalized) {
+            currentUtteranceBufferRef.current = currentUtteranceBufferRef.current
+              ? `${currentUtteranceBufferRef.current} ${seg}`
+              : seg;
+          }
+
+          setTranscript(currentUtteranceBufferRef.current);
+
+          // Natural short silence detection (~1400ms) to capture the COMPLETE customer/seller utterance
+          if (streamParseDebounceRef.current) {
+            clearTimeout(streamParseDebounceRef.current);
+          }
+          streamParseDebounceRef.current = setTimeout(() => {
+            if (!isSpeakingInterimRef.current && isVoiceActiveRef.current) {
+              const fullUtterance = currentUtteranceBufferRef.current.trim();
+              if (fullUtterance.length >= 2) {
+                handleProcessTranscript(fullUtterance);
+              }
+            }
+          }, 1400);
+        }
       };
 
       recognition.onerror = (event: any) => {
         console.error('Speech error', event);
-        setIsListening(false);
         if (event.error !== 'no-speech' && event.error !== 'aborted') {
           setError(`Microphone error: ${event.error}. You can also type directly.`);
+          setIsListening(false);
         }
       };
 
       recognition.onend = () => {
-        setIsListening(false);
         recognitionRef.current = null;
+        if (isIntentionalStopRef.current) {
+          setIsListening(false);
+          return;
+        }
+
+        // Auto restart if continuous listening dropped connection prematurely while session active
+        if (isVoiceActiveRef.current) {
+          lastProcessedFinalIndexRef.current = 0;
+          setIsListening(true);
+          setTimeout(() => {
+            if (isVoiceActiveRef.current && !isIntentionalStopRef.current) {
+              try {
+                toggleSpeechRecognition();
+              } catch {
+                // ignore
+              }
+            }
+          }, 150);
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;

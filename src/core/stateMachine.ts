@@ -32,13 +32,20 @@ export const ALLOWED_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
     OrderStatus.REFUND_PENDING,
   ],
   [OrderStatus.READY_FOR_PICKUP]: [
+    OrderStatus.ARRIVED,          // Customer arrived at pickup counter
     OrderStatus.COMPLETED,        // Customer picked up & verified PIN
     OrderStatus.CANCELLED,        // No-show or expired
     OrderStatus.REFUND_PENDING,
   ],
   [OrderStatus.OUT_FOR_DELIVERY]: [
+    OrderStatus.ARRIVED,          // Delivery partner arrived at doorstep
     OrderStatus.COMPLETED,        // Delivered successfully
     OrderStatus.CANCELLED,        // Delivery failed / customer unreachable
+    OrderStatus.REFUND_PENDING,
+  ],
+  [OrderStatus.ARRIVED]: [
+    OrderStatus.COMPLETED,        // Handover completed & verified
+    OrderStatus.CANCELLED,
     OrderStatus.REFUND_PENDING,
   ],
   [OrderStatus.COMPLETED]: [],   // Terminal successful state

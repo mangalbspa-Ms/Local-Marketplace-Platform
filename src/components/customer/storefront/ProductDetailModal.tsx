@@ -20,6 +20,7 @@ import { Shop } from '../../../types/market.ts';
 import { useCustomerCart } from '../../../context/CustomerCartContext.tsx';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { PricingEngine } from '../../../core/pricingEngine.ts';
+import { triggerHaptic, HAPTIC_FEEDBACK } from '../../../utils/haptics.ts';
 import {
   ArrowLeft,
   Heart,
@@ -89,12 +90,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   if (!isOpen || !product || !shop) return null;
 
   const isWeightBased = product.fractionalConfig?.unitType === ProductUnitType.WEIGHT;
-  const baseUnit = product.fractionalConfig.baseUnit || 'kg';
-  const predefinedOptions = product.fractionalConfig.predefinedOptions || [];
+  const baseUnit = product.fractionalConfig?.baseUnit || 'kg';
+  const predefinedOptions = product.fractionalConfig?.predefinedOptions || [];
 
-  // Calculate prices
-  const unitCalculatedPrice = Math.round(product.fractionalConfig.basePrice * selectedMultiplier);
-  const totalItemPrice = unitCalculatedPrice * quantityCount;
+  // Calculate prices with foolproof numeric fallbacks
+  const rawBase = product.fractionalConfig?.basePrice ?? product.basePricePerUnit ?? (product as any)?.basePrice ?? 0;
+  const safeBasePrice = Number.isFinite(Number(rawBase)) && !Number.isNaN(Number(rawBase)) && Number(rawBase) >= 0 ? Number(rawBase) : 0;
+  const unitCalculatedPrice = Math.round(safeBasePrice * (selectedMultiplier || 1));
+  const totalItemPrice = unitCalculatedPrice * (quantityCount || 1);
 
   // Derive active portion label
   const activeOption = predefinedOptions.find(
@@ -109,11 +112,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     : `${selectedMultiplier} ${baseUnit}`;
 
   // Estimate old / strike price
-  const estimatedMrp = Math.round(product.fractionalConfig.basePrice * 1.15);
-  const strikeOldPrice = Math.round(estimatedMrp * selectedMultiplier * quantityCount);
-  const discountPercent = Math.max(5, Math.round(((strikeOldPrice - totalItemPrice) / strikeOldPrice) * 100));
+  const estimatedMrp = Math.round(safeBasePrice * 1.15);
+  const strikeOldPrice = Math.round(estimatedMrp * (selectedMultiplier || 1) * (quantityCount || 1));
+  const discountPercent = strikeOldPrice > 0 ? Math.max(5, Math.round(((strikeOldPrice - totalItemPrice) / strikeOldPrice) * 100)) : 0;
 
   const handleAddToCart = () => {
+    triggerHaptic(HAPTIC_FEEDBACK.action);
     const success = addToCart(product, shop, selectedMultiplier, quantityCount, portionLabel);
     if (success) {
       setIsAddedAnimation(true);
@@ -122,6 +126,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   };
 
   const handleDirectBuyNow = () => {
+    triggerHaptic(HAPTIC_FEEDBACK.action);
     if (onBuyNow) {
       onBuyNow(product, selectedMultiplier, quantityCount, portionLabel);
     } else {
@@ -145,7 +150,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const rupeePresets = [10, 20, 50, 100];
 
   const handleSelectRupeePreset = (rupees: number) => {
-    const calculatedMultiplier = rupees / product.basePrice;
+    const baseRate = safeBasePrice > 0 ? safeBasePrice : 1;
+    const calculatedMultiplier = rupees / baseRate;
     setSelectedMultiplier(Number(calculatedMultiplier.toFixed(3)));
     setQuantityCount(1);
     setIsCustomMode(false);
@@ -272,7 +278,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                {portionLabel} {quantityCount > 1 ? `× ${quantityCount}` : ''} • ₹{product.fractionalConfig.basePrice}/{baseUnit}
+                {portionLabel} {quantityCount > 1 ? `× ${quantityCount}` : ''} • ₹{safeBasePrice}/{baseUnit}
               </div>
             </div>
 
@@ -312,7 +318,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="grid grid-cols-4 gap-1.5">
               {predefinedOptions.map((opt) => {
                 const isSelected = !isCustomMode && Math.abs(opt.multiplier - selectedMultiplier) < 0.001;
-                const optPrice = Math.round(product.fractionalConfig.basePrice * opt.multiplier);
+                const optPrice = Math.round(safeBasePrice * opt.multiplier);
 
                 return (
                   <button

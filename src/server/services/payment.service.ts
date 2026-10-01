@@ -13,6 +13,7 @@ import { PaymentGateway, PaymentStatus, PaymentRecord, PaymentIntentResponse, Pa
 import { PaymentVerificationError, NotFoundError, ConflictError } from '../utils/errors.ts';
 import { AuditEventType } from '../../types/financial.ts';
 import { Logger } from '../utils/logger.ts';
+import { AppNotification, NotificationType } from '../../types/notification.ts';
 
 export class PaymentService {
   /**
@@ -170,6 +171,27 @@ export class PaymentService {
       note: `Payment verified successfully via sandbox gateway (${verifiedMethod}, Ref: ${request.gatewayPaymentId})`,
     });
     db.saveOrder(order);
+
+    // Customer notification: Payment Successful (specific customer only, clear Hindi text)
+    if (order.customerId) {
+      const shortNum = (order.orderNumber || order.id).replace('ORD-', '');
+      const paidAmount = Math.round(order.financials.customerTotal);
+      db.addNotification({
+        id: `notif_cust_pay_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        recipientUserId: order.customerId,
+        type: NotificationType.PAYMENT_UPDATE,
+        title: 'भुगतान सफल',
+        message: `ऑर्डर #${shortNum} के लिए ₹${paidAmount} का भुगतान सफलतापूर्वक पूरा हुआ।`,
+        titleHi: 'भुगतान सफल',
+        titleEn: 'Payment Successful',
+        descHi: `ऑर्डर #${shortNum} के लिए ₹${paidAmount} का भुगतान सफलतापूर्वक पूरा हुआ।`,
+        descEn: `Payment of ₹${paidAmount} for order #${shortNum} was successful.`,
+        orderId: order.id,
+        amount: order.financials.customerTotal,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     const paymentRecord: PaymentRecord = {
       id: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

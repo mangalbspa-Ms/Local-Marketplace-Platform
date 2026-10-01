@@ -17,8 +17,8 @@ export function rateLimiter(options: { windowMs?: number; max?: number } = {}) {
   const max = options.max || 300; // 300 requests per window default
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Health checks bypass rate limiting
-    if (req.path === '/health' || req.originalUrl === '/api/health') {
+    // Health checks and OPTIONS preflight bypass rate limiting
+    if (req.method === 'OPTIONS' || req.path === '/health' || req.originalUrl === '/api/health') {
       return next();
     }
 

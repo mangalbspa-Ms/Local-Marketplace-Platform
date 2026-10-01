@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, UserAddress, UserRole } from '../types/auth.ts';
 import { customerApi } from '../services/customerApi.ts';
+import { PhotoApiService, ManagePhotoParams } from '../services/photoApi.ts';
 
 export const DEMO_CUSTOMERS = [
   {
@@ -70,6 +71,7 @@ interface CustomerAuthContextType {
   deleteAddress: (addressId: string) => Promise<void>;
   setDefaultAddress: (addressId: string) => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
+  updateCustomerPhoto: (params: ManagePhotoParams) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -84,6 +86,7 @@ const CustomerAuthContext = createContext<CustomerAuthContextType>({
   deleteAddress: async () => {},
   setDefaultAddress: async () => {},
   updateProfile: async () => {},
+  updateCustomerPhoto: async () => {},
   refreshProfile: async () => {},
 });
 
@@ -168,6 +171,12 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setUser(updated);
   };
 
+  const updateCustomerPhoto = async (params: ManagePhotoParams) => {
+    if (!user) return;
+    const updated = await PhotoApiService.manageUserPhoto(user.id, params, 'customer');
+    setUser(updated);
+  };
+
   return (
     <CustomerAuthContext.Provider
       value={{
@@ -181,6 +190,7 @@ export const CustomerAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         deleteAddress,
         setDefaultAddress,
         updateProfile,
+        updateCustomerPhoto,
         refreshProfile,
       }}
     >

@@ -6,7 +6,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProductService } from '../services/product.service.ts';
 import { ResponseUtil } from '../utils/response.ts';
-import { ValidationError } from '../utils/errors.ts';
+import { ValidationError, NotFoundError, ShopIsolationError } from '../utils/errors.ts';
+import { UserRole } from '../../types/auth.ts';
 import { db } from '../storage/db.ts';
 
 export class ProductController {
@@ -85,9 +86,18 @@ export class ProductController {
 
   public static async deleteProduct(req: Request, res: Response, next: NextFunction) {
     try {
-      const sellerShopId = req.user!.shopId!;
+      const product = db.getProductById(req.params.id);
+      if (!product) {
+        throw new NotFoundError('Product', req.params.id);
+      }
       const sellerUserId = req.user!.userId;
-      ProductService.deleteProduct(req.params.id, sellerShopId, sellerUserId);
+      const sellerShopId = req.user?.shopId;
+
+      if (req.user?.role !== UserRole.ADMIN && sellerShopId && product.shopId !== sellerShopId) {
+        throw new ShopIsolationError('Cannot delete a product from another shop.');
+      }
+
+      ProductService.deleteProduct(req.params.id, product.shopId, sellerUserId);
       return ResponseUtil.success(res, { id: req.params.id }, 'Product removed from shop catalog');
     } catch (err) {
       next(err);

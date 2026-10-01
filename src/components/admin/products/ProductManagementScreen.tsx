@@ -92,26 +92,39 @@ export const ProductManagementScreen: React.FC = () => {
     }
   };
 
-  const filtered = products.filter(
-    (p) =>
-      (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.hindiName && p.hindiName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (p.shopName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.category || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const q = (searchQuery || '').toLowerCase();
+    const hindi = (p?.nameHindi || (p as any)?.hindiName || '');
+    return (
+      (p?.name || '').toLowerCase().includes(q) ||
+      (hindi ? hindi.toLowerCase().includes(q) : false) ||
+      (p?.shopName || '').toLowerCase().includes(q) ||
+      (p?.category || '').toLowerCase().includes(q)
+    );
+  });
+
+  const inStockCount = products.filter((p) => p.isAvailable && (p.currentStockInBaseUnits ?? 0) > 0).length;
+  const outOfStockCount = products.filter((p) => !p.isAvailable || (p.currentStockInBaseUnits ?? 0) <= 0).length;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-indigo-400" />
-            <span>Marketplace Product Catalog</span>
-          </h2>
-          <p className="text-xs text-slate-400">
-            Monitor SKU pricing, fractional stock levels, and merchant inventory across all active mandis.
-          </p>
+    <div className="space-y-4">
+      {/* Compact Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+              <span>Marketplace Product Catalog</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                {filtered.length} SKUs
+              </span>
+            </h2>
+            <p className="text-[11px] text-slate-400">
+              Monitor SKU pricing, fractional stock levels, and merchant inventory across all shops
+            </p>
+          </div>
         </div>
 
         {/* Filter Selects */}
@@ -119,7 +132,7 @@ export const ProductManagementScreen: React.FC = () => {
           <select
             value={selectedShopId}
             onChange={(e) => setSelectedShopId(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 font-bold max-w-[180px] truncate"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-semibold max-w-[150px] truncate"
           >
             <option value="ALL">All Shops</option>
             {shops.map((s) => (
@@ -132,7 +145,7 @@ export const ProductManagementScreen: React.FC = () => {
           <select
             value={stockFilter}
             onChange={(e) => setStockFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 font-bold"
+            className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 font-semibold"
           >
             <option value="ALL">All Stock</option>
             <option value="AVAILABLE">In Stock</option>
@@ -141,39 +154,79 @@ export const ProductManagementScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Search Input */}
-      <div className="relative max-w-md">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search products (e.g. Sugar, Atta, Tomato, Milk)..."
-          className="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-2.5 pl-10 text-xs text-white placeholder-slate-500 outline-none transition"
-        />
-        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+      {/* 3 Compact KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Active SKUs</p>
+            <h3 className="text-lg font-black text-white mt-0.5">{products.length}</h3>
+            <p className="text-[10px] text-slate-500">Across {shops.length} merchants</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">In-Stock Inventory</p>
+            <h3 className="text-lg font-black text-emerald-400 mt-0.5">{inStockCount}</h3>
+            <p className="text-[10px] text-emerald-400/70">Ready for customer ordering</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Out of Stock</p>
+            <h3 className="text-lg font-black text-rose-400 mt-0.5">{outOfStockCount}</h3>
+            <p className="text-[10px] text-rose-400/70">Depleted stock levels</p>
+          </div>
+          <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Search Input Bar */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search products (e.g. Sugar, Atta, Tomato, Milk)..."
+            className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 pl-8 text-xs text-white placeholder-slate-500 outline-none transition"
+          />
+          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+        </div>
       </div>
 
       {/* Product Catalog Grid */}
       {isLoading ? (
-        <div className="p-8 text-center text-xs text-slate-400 font-bold">Loading product catalog...</div>
+        <div className="p-8 text-center text-xs text-slate-400 font-bold bg-slate-900/60 border border-slate-800 rounded-xl">
+          Loading product catalog...
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center text-xs text-slate-400">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-8 text-center text-xs text-slate-400">
           No matching products found.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
           {filtered.map((product) => (
             <div
               key={product.id}
-              className={`rounded-3xl border p-4 bg-slate-900 shadow-lg flex flex-col justify-between ${
+              className={`rounded-xl border p-2.5 sm:p-3 bg-slate-900/90 shadow-sm flex flex-col justify-between hover:border-slate-700 transition ${
                 product.isAvailable && (product.currentStockInBaseUnits ?? 0) > 0
                   ? 'border-slate-800'
-                  : 'border-rose-900/40 bg-slate-950/60 opacity-80'
+                  : 'border-rose-900/40 bg-slate-950/60 opacity-85'
               }`}
             >
               <div>
                 {/* Image and Stock Badge */}
-                <div className="relative w-full h-36 rounded-2xl overflow-hidden mb-3 border border-slate-800 bg-slate-950">
+                <div className="relative w-full h-24 sm:h-28 rounded-lg overflow-hidden mb-2 border border-slate-800 bg-slate-950">
                   <img
                     src={
                       product.imageUrl && product.imageUrl.trim() !== ''
@@ -183,13 +236,13 @@ export const ProductManagementScreen: React.FC = () => {
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-1.5 right-1.5">
                     {product.isAvailable && (product.currentStockInBaseUnits ?? 0) > 0 ? (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 text-[10px] font-black border border-emerald-700/80 backdrop-blur-xs">
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-950/90 text-emerald-300 text-[8px] font-black border border-emerald-700/80 backdrop-blur-xs">
                         IN STOCK
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 text-[10px] font-black border border-rose-700/80 backdrop-blur-xs">
+                      <span className="px-1.5 py-0.5 rounded-md bg-rose-950/90 text-rose-300 text-[8px] font-black border border-rose-700/80 backdrop-blur-xs">
                         OUT OF STOCK
                       </span>
                     )}
@@ -197,29 +250,29 @@ export const ProductManagementScreen: React.FC = () => {
                 </div>
 
                 {/* Info */}
-                <div className="space-y-1 mb-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+                <div className="space-y-0.5 mb-2">
+                  <div className="flex items-center gap-1 text-[9px] font-bold text-indigo-400 uppercase tracking-wider truncate">
                     <span>{product.category}</span>
                     <span>•</span>
                     <span className="truncate">{product.shopName}</span>
                   </div>
-                  <h3 className="text-sm font-black text-white">{product.name}</h3>
+                  <h3 className="text-xs font-black text-white truncate">{product.name}</h3>
                   {product.hindiName && (
-                    <p className="text-xs text-slate-400 font-hindi">{product.hindiName}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{product.hindiName}</p>
                   )}
                 </div>
 
                 {/* Price & Unit Details */}
-                <div className="grid grid-cols-2 gap-2 p-2.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center mb-3">
+                <div className="grid grid-cols-2 gap-1 p-1.5 rounded-lg bg-slate-950/70 border border-slate-800/80 text-center mb-2">
                   <div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">Base Price</div>
-                    <div className="text-xs font-black text-emerald-400 mt-0.5">
-                      ₹{product.baseUnitPrice} / {product.baseUnit}
+                    <div className="text-[8px] text-slate-400 font-bold uppercase">Price</div>
+                    <div className="text-[11px] font-black text-emerald-400 mt-0.5 truncate">
+                      ₹{product.baseUnitPrice}/{product.baseUnit}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">Stock Level</div>
-                    <div className="text-xs font-black text-white mt-0.5">
+                    <div className="text-[8px] text-slate-400 font-bold uppercase">Stock</div>
+                    <div className="text-[11px] font-black text-white mt-0.5 truncate">
                       {product.currentStockInBaseUnits ?? 0} {product.baseUnit}
                     </div>
                   </div>
@@ -229,10 +282,10 @@ export const ProductManagementScreen: React.FC = () => {
               {/* Action */}
               <button
                 onClick={() => handleOpenEdit(product)}
-                className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                className="w-full py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-98 border border-slate-700/60"
               >
-                <Edit2 className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Adjust Stock / Price</span>
+                <Edit2 className="w-3 h-3 text-indigo-400" />
+                <span>Adjust</span>
               </button>
             </div>
           ))}
@@ -249,10 +302,12 @@ export const ProductManagementScreen: React.FC = () => {
                 <span>Inventory & Price Adjustment</span>
               </h3>
               <button
+                type="button"
                 onClick={() => setEditingProduct(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white"
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition"
               >
-                <X className="w-5 h-5" />
+                <X className="w-3.5 h-3.5" />
+                <span>Close</span>
               </button>
             </div>
 

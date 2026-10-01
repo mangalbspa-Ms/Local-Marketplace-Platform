@@ -32,6 +32,7 @@ export type BaseUnit =
   | 'tray'
   | 'bunch'
   | 'dozen'
+  | 'plate'
   | 'pouch'
   | 'bundle'
   | 'pair';

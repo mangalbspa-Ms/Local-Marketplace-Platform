@@ -12,6 +12,8 @@ import { useCustomerCart } from '../../../context/CustomerCartContext.tsx';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { Product, ProductUnitType } from '../../../types/product.ts';
 import { Shop } from '../../../types/market.ts';
+import { createSpeechRecognition, requestMicrophonePermission } from '../../../utils/speechRecognitionHelper.ts';
+import { findMatchingShop } from './shopVoiceMatcher.ts';
 import {
   Mic,
   MicOff,
@@ -55,6 +57,7 @@ const SAMPLE_PROMPTS = [
 export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   isOpen,
   onClose,
+  onSelectShop,
 }) => {
   const { shops } = useCustomerMarket();
   const { addToCart, shopId: activeCartShopId } = useCustomerCart();
@@ -65,10 +68,13 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
   const [manualInput, setManualInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [interpretedItems, setInterpretedItems] = useState<InterpretedVoiceItem[]>([]);
+  const [matchedShopResult, setMatchedShopResult] = useState<Shop | null>(null);
   const [allAddedMessage, setAllAddedMessage] = useState<string | null>(null);
   const [speechError, setSpeechError] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
+  const processedFinalIndicesRef = useRef<Set<number>>(new Set());
+  const lastParsedTranscriptRef = useRef<string>('');
 
   const stopRecognition = () => {
     if (recognitionRef.current) {
@@ -86,24 +92,33 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     setIsListening(false);
   };
 
-  const startRecognition = () => {
+  const startRecognition = async () => {
     stopRecognition();
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setSpeechError('Speech recognition is not supported in this browser. Please type below.');
-      return;
-    }
 
     setTranscript('');
     setInterpretedItems([]);
+    setMatchedShopResult(null);
     setAllAddedMessage(null);
     setSpeechError(null);
+    processedFinalIndicesRef.current.clear();
+    lastParsedTranscriptRef.current = '';
+
+    const permResult = await requestMicrophonePermission();
+    if (!permResult.granted) {
+      setSpeechError(
+        language === 'hi'
+          ? 'माइक्रोफ़ोन की अनुमति अस्वीकृत है। कृपया ब्राउज़र सेटिंग में अनुमति दें या लिखकर ऑर्डर करें।'
+          : 'Microphone permission denied. Please allow microphone access or type your order.'
+      );
+      return;
+    }
 
     try {
-      const recognition = new SpeechRecognition();
+      const recognition = createSpeechRecognition();
+      if (!recognition) {
+        setSpeechError('Speech recognition is not supported in this browser. Please type below.');
+        return;
+      }
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
@@ -114,11 +129,36 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       };
 
       recognition.onresult = (event: any) => {
-        let currentTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          currentTranscript += event.results[i][0].transcript;
+          if (!event.results[i] || !event.results[i][0]) continue;
+
+          // SPECIFIC REQUIREMENT: Explicitly check `event.results[i].isFinal`.
+          // Ensure the parsing logic is wrapped inside this check, completely ignoring all `isFinal === false` interim events to prevent fragment insertion.
+          if (event.results[i].isFinal) {
+            // Check if this result index has already been processed as final in this recognition instance
+            if (processedFinalIndicesRef.current.has(i)) {
+              continue;
+            }
+            processedFinalIndicesRef.current.add(i);
+
+            const transcriptChunk = (event.results[i][0].transcript || '').trim();
+            if (!transcriptChunk) continue;
+
+            setTranscript(transcriptChunk);
+
+            // Parsing logic is wrapped strictly inside event.results[i].isFinal check
+            if (lastParsedTranscriptRef.current !== transcriptChunk) {
+              lastParsedTranscriptRef.current = transcriptChunk;
+              parseVoiceTranscript(transcriptChunk);
+            }
+          } else {
+            // Completely ignore all isFinal === false interim events from parsing logic
+            const interimText = (event.results[i][0].transcript || '').trim();
+            if (interimText) {
+              setTranscript(interimText);
+            }
+          }
         }
-        setTranscript(currentTranscript);
       };
 
       recognition.onerror = (event: any) => {
@@ -155,9 +195,11 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     }
   };
 
-  // Stop listening if modal is closed
+  // Auto-start listening on open, stop on close
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      startRecognition();
+    } else {
       stopRecognition();
     }
   }, [isOpen]);
@@ -169,13 +211,6 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
     };
   }, []);
 
-  // When speech recognition finishes or transcript updates with text, parse items
-  useEffect(() => {
-    if (!isListening && transcript.trim().length > 3) {
-      parseVoiceTranscript(transcript);
-    }
-  }, [isListening, transcript]);
-
   /**
    * Client-side Natural Language Parser for Hindi & Hinglish Grocery Requests
    */
@@ -186,7 +221,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
 
     await new Promise((r) => setTimeout(r, 400));
 
-    const text = rawText.toLowerCase().replace(/,/g, ' and ').replace(/aur/g, ' and ').replace(/tatha/g, ' and ');
+    const text = (rawText || '').toLowerCase().replace(/,/g, ' and ').replace(/aur/g, ' and ').replace(/tatha/g, ' and ');
     const clauses = text.split(/and|\+|\n/).map((c) => c.trim()).filter(Boolean);
 
     const parsedResults: InterpretedVoiceItem[] = [];
@@ -210,17 +245,21 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       coriander: { aliases: ['coriander', 'dhaniya', 'kothmir', 'धनिया', 'कोथिंबीर'], defaultUnit: 'bunch', basePrice: 15, category: 'Vegetables' },
     };
 
-    // Check if a specific shop name is mentioned (e.g. Manish Kirana Store / मनीष किराना)
-    let shopMentioned: Shop | null = null;
-    if (text.includes('manish') || text.includes('मनीष')) {
-      shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('manish') || s.name?.includes('मनीष')) || null;
-    } else if (text.includes('laxmi') || text.includes('लक्ष्मी')) {
-      shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('laxmi') || s.name?.includes('लक्ष्मी')) || null;
-    } else if (text.includes('ganesh') || text.includes('गणेश')) {
-      shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('ganesh') || s.name?.includes('गणेश')) || null;
-    } else if (text.includes('gokul') || text.includes('गोकुल')) {
-      shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('gokul') || s.name?.includes('गोकुल')) || null;
+    // Check if a specific shop name is mentioned or matched (e.g. Manish Kirana Store / मनीष किराना)
+    const directShop = findMatchingShop(rawText, shops);
+    let shopMentioned: Shop | null = directShop;
+    if (!shopMentioned) {
+      if (text.includes('manish') || text.includes('मनीष')) {
+        shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('manish') || s.name?.includes('मनीष')) || null;
+      } else if (text.includes('laxmi') || text.includes('लक्ष्मी')) {
+        shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('laxmi') || s.name?.includes('लक्ष्मी')) || null;
+      } else if (text.includes('ganesh') || text.includes('गणेश')) {
+        shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('ganesh') || s.name?.includes('गणेश')) || null;
+      } else if (text.includes('gokul') || text.includes('गोकुल')) {
+        shopMentioned = shops.find((s) => (s.name || '').toLowerCase().includes('gokul') || s.name?.includes('गोकुल')) || null;
+      }
     }
+    setMatchedShopResult(shopMentioned);
 
     clauses.forEach((clause, idx) => {
       let multiplier = 1.0;
@@ -362,6 +401,30 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
       }
     });
 
+    // If customer solely spoke a shop name without item clauses
+    if (shopMentioned && onSelectShop && parsedResults.length === 0) {
+      setIsProcessing(false);
+      onClose();
+      onSelectShop(shopMentioned);
+      return;
+    }
+
+    // Temporary debugging log within the voice parsing pipeline
+    console.log('🎙️ [Voice Parsing Debug]', {
+      rawFinalTranscript: rawText,
+      detectedItems: parsedResults.map((r) => ({
+        productName: r.matchedProduct.name,
+        quantity: r.quantityCount,
+        portion: r.displayPortion,
+        estimatedPrice: r.estimatedPrice,
+      })),
+      matchingStatus: parsedResults.map((r) => ({
+        productName: r.matchedProduct.name,
+        shop: r.matchedShop.name,
+        status: 'Local Catalog',
+      })),
+    });
+
     setInterpretedItems(parsedResults);
     setIsProcessing(false);
   };
@@ -432,13 +495,13 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                <span>{language === 'hi' ? '🎙️ बोलकर ऑर्डर करें' : '🎙️ Order by Voice'}</span>
+                <span>{language === 'hi' ? '🎙️ वॉयस सर्च (दुकान व सामान)' : '🎙️ Voice Search (Shops & Items)'}</span>
                 <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold">
                   Hindi / Hinglish
                 </span>
               </h3>
               <p className="text-[10px] text-slate-500">
-                {language === 'hi' ? 'लिखने की जरूरत नहीं • बस बोलकर सामान बताइए' : 'No typing needed • Just speak your items'}
+                {language === 'hi' ? 'दुकान या सामान का नाम बोलकर खोजें' : 'Speak to search shops or items'}
               </p>
             </div>
           </div>
@@ -573,6 +636,33 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
           </button>
         </form>
 
+        {/* Matched Shop Banner (if shop was identified) */}
+        {matchedShopResult && onSelectShop && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                <Store className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 text-left">
+                <div className="text-xs font-bold text-slate-900 truncate">{matchedShopResult.name}</div>
+                <div className="text-[10px] text-slate-500">
+                  {matchedShopResult.category} • {matchedShopResult.distanceText || '0.5 km'}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onSelectShop(matchedShopResult);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0 transition-colors shadow-2xs cursor-pointer"
+            >
+              {language === 'hi' ? 'दुकान देखें' : 'Open Shop'}
+            </button>
+          </div>
+        )}
+
         {/* Interpreted Items Cards */}
         {isProcessing ? (
           <div className="py-6 text-center space-y-2">
@@ -631,10 +721,19 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                     </div>
 
                     {item.matchedShop && (
-                      <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onSelectShop && item.matchedShop) {
+                            onClose();
+                            onSelectShop(item.matchedShop);
+                          }
+                        }}
+                        className="text-[10px] text-slate-500 hover:text-emerald-700 flex items-center gap-1 mt-0.5 cursor-pointer text-left transition-colors"
+                      >
                         <Store className="w-3 h-3 text-slate-400" />
-                        <span className="truncate">{item.matchedShop.name}</span>
-                      </div>
+                        <span className="truncate hover:underline">{item.matchedShop.name}</span>
+                      </button>
                     )}
                   </div>
 
@@ -662,6 +761,10 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        ) : !isProcessing && transcript && !matchedShopResult ? (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500">
+            {language === 'hi' ? 'कोई दुकान या सामान नहीं मिला। कृपया दोबारा बोलें।' : 'No shops or items matched. Please try speaking again.'}
           </div>
         ) : null}
       </div>

@@ -17,6 +17,7 @@ import {
   Store,
 } from 'lucide-react';
 import { Shop } from '../../types/market.ts';
+import { CoverPhotoSlideshow } from '../common/CoverPhotoSlideshow.tsx';
 
 export interface ShopCardProps {
   shop: Shop | any;
@@ -31,16 +32,18 @@ export interface ShopCardProps {
 }
 
 export const DEFAULT_SHOP_PHOTO = 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=80';
+export const DEFAULT_PROFILE_PHOTO = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80';
 
-export const getShopPhotoUrl = (shop: any): string => {
+export const getShopCoverPhotoUrl = (shop: any): string => {
   if (!shop) return DEFAULT_SHOP_PHOTO;
-  const directPhoto =
+  const directCover =
+    (shop.coverPhotoUrl && typeof shop.coverPhotoUrl === 'string' && shop.coverPhotoUrl.trim()) ||
     (shop.bannerImageUrl && typeof shop.bannerImageUrl === 'string' && shop.bannerImageUrl.trim()) ||
     (shop.bannerUrl && typeof shop.bannerUrl === 'string' && shop.bannerUrl.trim()) ||
     (shop.photoUrl && typeof shop.photoUrl === 'string' && shop.photoUrl.trim()) ||
     (shop.logoImageUrl && typeof shop.logoImageUrl === 'string' && shop.logoImageUrl.trim());
 
-  if (directPhoto) return directPhoto;
+  if (directCover) return directCover;
 
   const category = (shop.category || '').toLowerCase();
   const name = (shop.name || '').toLowerCase();
@@ -53,6 +56,34 @@ export const getShopPhotoUrl = (shop: any): string => {
   }
   return DEFAULT_SHOP_PHOTO;
 };
+
+export const getShopProfilePhotoUrl = (shop: any): string => {
+  if (!shop) return '';
+  const directProfile =
+    (shop.profilePhotoUrl && typeof shop.profilePhotoUrl === 'string' && shop.profilePhotoUrl.trim()) ||
+    (shop.logoImageUrl && typeof shop.logoImageUrl === 'string' && shop.logoImageUrl.trim()) ||
+    (shop.photoUrl && typeof shop.photoUrl === 'string' && shop.photoUrl.trim());
+
+  if (directProfile) return directProfile;
+  return '';
+};
+
+export const getShopCoverPhotosList = (shop: any, fallback?: string): string[] => {
+  if (!shop) return fallback ? [fallback] : [DEFAULT_SHOP_PHOTO];
+
+  if (shop.coverPhotos && Array.isArray(shop.coverPhotos)) {
+    const list = shop.coverPhotos
+      .filter((p: any): p is string => Boolean(p && typeof p === 'string' && p.trim().length > 0))
+      .map((p: string) => p.trim());
+    if (list.length > 0) return list;
+  }
+
+  const directCover = getShopCoverPhotoUrl(shop);
+  if (directCover && directCover.trim()) return [directCover.trim()];
+  return fallback ? [fallback] : [DEFAULT_SHOP_PHOTO];
+};
+
+export const getShopPhotoUrl = getShopCoverPhotoUrl;
 
 export const ShopCard: React.FC<ShopCardProps> = ({
   shop,
@@ -93,7 +124,8 @@ export const ShopCard: React.FC<ShopCardProps> = ({
     ? Number(shop.rating).toFixed(1)
     : '4.6';
 
-  const shopPhoto = getShopPhotoUrl(shop);
+  const coverPhotos = getShopCoverPhotosList(shop, DEFAULT_SHOP_PHOTO);
+  const profilePhoto = getShopProfilePhotoUrl(shop);
 
   const sellerName = shop.sellerName || 'दुकानदार';
 
@@ -133,11 +165,12 @@ export const ShopCard: React.FC<ShopCardProps> = ({
       {/* 1. Shop Photo Header with Badges */}
       <div>
         <div className="relative w-full h-28 sm:h-32 bg-slate-100 overflow-hidden">
-          <img
-            src={shopPhoto && shopPhoto.trim() ? shopPhoto : DEFAULT_SHOP_PHOTO}
+          <CoverPhotoSlideshow
+            photos={coverPhotos}
+            fallbackPhoto={DEFAULT_SHOP_PHOTO}
             alt={shop.name}
+            containerClassName="absolute inset-0 w-full h-full"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            referrerPolicy="no-referrer"
           />
 
           {/* Top Left: Verification / Status Badge */}
@@ -171,8 +204,27 @@ export const ShopCard: React.FC<ShopCardProps> = ({
             </div>
           )}
 
+          {/* Circular Profile Photo Over Cover Area */}
+          <div className="absolute bottom-1.5 right-1.5 z-10">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border-2 border-white shadow-md bg-white shrink-0 overflow-hidden flex items-center justify-center">
+              {profilePhoto && profilePhoto.trim() ? (
+                <img
+                  src={profilePhoto.trim()}
+                  alt={sellerName || shop.name}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <Store className="w-5 h-5 text-emerald-700" />
+              )}
+            </div>
+          </div>
+
           {/* Bottom Left on Photo: Category Chip */}
-          <div className="absolute bottom-1.5 left-1.5 max-w-[80%]">
+          <div className="absolute bottom-1.5 left-1.5 max-w-[70%]">
             <span className="bg-slate-950/75 backdrop-blur-xs text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded truncate block border border-white/10">
               {categoryName}
             </span>
@@ -229,16 +281,18 @@ export const ShopCard: React.FC<ShopCardProps> = ({
             )}
           </div>
 
-          {/* Total Products (Item Count) */}
-          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-100">
-            <span className="flex items-center gap-1 text-slate-500 font-medium">
-              <Package className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-              <span>कुल सामान:</span>
-            </span>
-            <span className="font-extrabold text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded text-[9.5px]">
-              {totalProducts} आइटम्स
-            </span>
-          </div>
+          {/* Total Products (Item Count) - Admin only; removed from customer-facing shop card */}
+          {variant === 'admin' && (
+            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-100">
+              <span className="flex items-center gap-1 text-slate-500 font-medium">
+                <Package className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                <span>कुल सामान:</span>
+              </span>
+              <span className="font-extrabold text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded text-[9.5px]">
+                {totalProducts} आइटम्स
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
