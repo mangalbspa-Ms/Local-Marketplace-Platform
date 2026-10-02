@@ -82,7 +82,6 @@ export interface Order {
   deliveryPartnerId?: string;           // If assigned to a delivery person
   items: OrderItem[];
   financials: OrderFinancialBreakdown;
-  total?: number;                       // Optional computed order total
   status: OrderStatus;
   paymentId?: string;
   paymentMethod?: string;

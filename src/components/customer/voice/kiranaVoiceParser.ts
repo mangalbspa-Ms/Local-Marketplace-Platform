@@ -594,10 +594,10 @@ export const resolveSpokenProductAgainstMasterCatalog = (
   candidatePhrase = candidatePhrase.replace(/(?:दस|बीस|पचास|सौ)\s*(?:रुपये?|रुपइया|रुपए|rupaye)?\s*(?:का|की|के)(?=[^\p{L}\p{M}\p{N}]|$)/gui, ' ');
   candidatePhrase = candidatePhrase.replace(/(?:दस|बीस|पचास|सौ)\s*(?:रुपये?|रुपइया|रुपए|rupaye)/gui, ' ');
   // Unit words
-  candidatePhrase = candidatePhrase.replace(/(?:^|[^\p{L}\p{M}\p{N}])(packet|packets|pack|packs|पैकेट|पैक|पैट|पीस|piece|pieces|plate|plates|प्लेट|ग्राम|किलो|kg|g|gm|kilo|kilos|लीटर|litre|liter|ltr|l|paav|pauwa|पाव|पौवा|पउवा)(?=[^\p{L}\p{M}\p{N}]|$)/gui, ' ');
+  candidatePhrase = candidatePhrase.replace(/(?:^|[^\p{L}\p{M}\p{N}])(packet|packets|pack|packs|पैकेट|पैक|पैट|पीस|piece|pieces|plate|plates|प्लेट|ग्राम|किलो|kg|g|gm|kilo|kilos|लीटर|litre|liter|ltr|l)(?=[^\p{L}\p{M}\p{N}]|$)/gui, ' ');
   // Leftover numbers and boundaries
   candidatePhrase = candidatePhrase.replace(/^\s*\d+(\.\d+)?\s+/g, ' ');
-  candidatePhrase = candidatePhrase.replace(/^\s*(ek|do|dui|teen|char|chaar|paanch|panch|एक|दो|दुई|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस|सवा|पौन|पौना|डेढ़|ढाई|आधा|पाव|paav)\s+/gi, ' ');
+  candidatePhrase = candidatePhrase.replace(/^\s*(ek|do|dui|teen|char|chaar|paanch|panch|एक|दो|दुई|तीन|चार|पांच|पाँच|छह|सात|आठ|नौ|दस|सवा|पौन|पौना|डेढ़|ढाई|आधा)\s+/gi, ' ');
   candidatePhrase = candidatePhrase.replace(/\b\d+(\.\d+)?\b/g, ' ');
   candidatePhrase = candidatePhrase.replace(/[,।\.\-\+\/\s]+/g, ' ').trim();
   candidatePhrase = candidatePhrase.replace(/^(?:का|की|के|ka|ki|ke)\s+/gui, '').replace(/\s+(?:का|की|के|ka|ki|ke)$/gui, '').trim();
@@ -985,11 +985,11 @@ export const parseVoiceShoppingSlipItem = (
     lower.includes('पौना किलो')
   ) {
     // 3 पाव = 750 ग्राम
-    count = 750;
+    count = 3;
     multiplier = 0.75;
-    baseUnit = 'gram';
-    unitDisplay = '750 ग्राम';
-    requestedPortion = '750 ग्राम';
+    baseUnit = 'paav';
+    unitDisplay = '3 पाव';
+    requestedPortion = '3 पाव';
   } else if (
     lower.includes('दो पाव') ||
     lower.includes('2 पाव') ||
@@ -999,21 +999,21 @@ export const parseVoiceShoppingSlipItem = (
     lower.includes('do paav')
   ) {
     // 2 पाव = 500 ग्राम
-    count = 500;
+    count = 2;
     multiplier = 0.5;
-    baseUnit = 'gram';
-    unitDisplay = '500 ग्राम';
-    requestedPortion = '500 ग्राम';
+    baseUnit = 'paav';
+    unitDisplay = '2 पाव';
+    requestedPortion = '2 पाव';
   } else if (
     lower.includes('aadha kilo') ||
     lower.includes('आधा किलो') ||
     lower.includes('आधा kg')
   ) {
-    count = 500;
+    count = 0.5;
     multiplier = 0.5;
-    baseUnit = 'gram';
-    unitDisplay = '500 ग्राम';
-    requestedPortion = '500 ग्राम';
+    baseUnit = 'kg';
+    unitDisplay = '½ किलो';
+    requestedPortion = '½ किलो';
   } else if (
     lower.includes('500g') ||
     lower.includes('500 gram') ||
@@ -1037,11 +1037,11 @@ export const parseVoiceShoppingSlipItem = (
     /(?:^|[^\p{L}\p{M}\p{N}])पाव(?=[^\p{L}\p{M}\p{N}]|$)/u.test(lower)
   ) {
     // 1 पाव = 0.25 किलो (250 ग्राम)
-    count = 250;
+    count = 0.25;
     multiplier = 0.25;
-    baseUnit = 'gram';
-    unitDisplay = '250 ग्राम';
-    requestedPortion = '250 ग्राम';
+    baseUnit = 'kg';
+    unitDisplay = 'पाव/250 ग्राम';
+    requestedPortion = 'पाव/250 ग्राम';
   } else if (
     lower.includes('250g') ||
     lower.includes('250 gram') ||
@@ -1351,9 +1351,9 @@ export const parseVoiceShoppingSlipItem = (
       }
     }
     // If not followed by weight or price words
-    if (!lower.match(/^\s*(?:\d+|[a-zA-Z\u0900-\u097F]+)\s*(?:paav|pauwa|pauva|पाव|पौवा|पउवा|kilo|kg|किलो|gram|gm|g|ग्राम|litre|liter|l|लीटर|darjan|dozen|दर्जन|plate|plates|प्लेट|rupaye|rupees|रुपये|का|की)/i)) {
+    if (!lower.match(/^\s*(?:\d+|[a-zA-Z\u0900-\u097F]+)\s*(?:kilo|kg|किलो|gram|gm|g|ग्राम|litre|liter|l|लीटर|darjan|dozen|दर्जन|plate|plates|प्लेट|rupaye|rupees|रुपये|का|की)/i)) {
       count = leadingNum;
-      multiplier = 1.0;
+      multiplier = leadingNum;
       baseUnit = 'piece';
       unitDisplay = `${leadingNum} पीस`;
       requestedPortion = unitDisplay;

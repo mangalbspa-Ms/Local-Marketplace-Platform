@@ -6,7 +6,7 @@
  */
 
 import { BaseUnit, ProductUnitType, Product } from '../types/product.ts';
-import { OrderFinancialBreakdown, OrderItem, FulfillmentType } from '../types/order.ts';
+import { OrderFinancialBreakdown, OrderItem } from '../types/order.ts';
 
 export interface CalculatedItemPrice {
   basePrice: number;
@@ -16,39 +16,6 @@ export interface CalculatedItemPrice {
   unitPrice: number;
   lineTotal: number;
   formattedDisplay: string;
-}
-
-export interface GenericBillItem {
-  id?: string;
-  unitPrice?: number;
-  quantityCount?: number;
-  quantityMultiplier?: number;
-  quantity?: number;
-  moneyAmount?: number;
-  isMoneyOrder?: boolean;
-  isAvailable?: boolean;
-  lineTotal?: number;
-  lineItemTotal?: number;
-}
-
-export interface BillCalculationOptions {
-  fulfillmentType?: FulfillmentType;
-  deliveryFee?: number;
-  freeDeliveryThreshold?: number;
-  discount?: number;
-  platformFee?: number;
-  taxRatePercentage?: number;
-}
-
-export interface CalculatedBillBreakdown {
-  itemSubtotal: number;
-  discount: number;
-  deliveryFee: number;
-  platformFee: number;
-  tax: number;
-  customerTotal: number;
-  finalBill: number;
-  itemCount: number;
 }
 
 export class PricingEngine {
@@ -250,108 +217,6 @@ export class PricingEngine {
   }
 
   /**
-   * Authoritative calculation of a single item's line total.
-   * lineTotal = exact quantity × applicable unit price
-   * Handles:
-   * - Budget / money value items: lineTotal is exact budget amount
-   * - Fractional weight / volume: exact quantity in base units × unit price
-   * - Count / piece / packet: exact count × unit price
-   * Strictly avoids double-multiplying when quantity is present in both count and multiplier.
-   */
-  public static calculateLineTotal(item: GenericBillItem): number {
-    if (item.isAvailable === false) {
-      return 0;
-    }
-
-    if (item.isMoneyOrder || (item.moneyAmount !== undefined && item.moneyAmount > 0)) {
-      return Math.round((item.moneyAmount || 0) * 100) / 100;
-    }
-
-    if (item.lineItemTotal !== undefined && item.unitPrice === undefined) {
-      return Math.round(item.lineItemTotal * 100) / 100;
-    }
-
-    const unitPrice = Math.max(0, Number(item.unitPrice) || 0);
-
-    let multiplier = Number(item.quantityMultiplier);
-    let count = Number(item.quantityCount !== undefined ? item.quantityCount : item.quantity);
-
-    if (isNaN(multiplier) || multiplier <= 0) multiplier = 1.0;
-    if (isNaN(count) || count <= 0) count = 1;
-
-    // Guard against parser duplication bug where both multiplier and count were set to the same integer count > 1
-    let effectiveQuantity: number;
-    if (multiplier > 1 && count > 1 && Math.abs(multiplier - count) < 0.0001) {
-      effectiveQuantity = count;
-    } else {
-      effectiveQuantity = multiplier * count;
-    }
-
-    return Math.round(unitPrice * effectiveQuantity * 100) / 100;
-  }
-
-  /**
-   * Authoritative Order & Bill Calculation Engine
-   * Single source of truth for Customer App and Seller App.
-   *
-   * Rules:
-   * 1. itemsSubtotal = SUM(all valid lineTotals)
-   * 2. discount: subtracted from subtotal (capped at subtotal, never negative, never added)
-   * 3. deliveryFee:
-   *    - STORE_PICKUP -> ₹0
-   *    - HOME_DELIVERY -> shop's delivery fee (₹0 if freeDeliveryThreshold met)
-   * 4. platformFee: existing applicable platform fee
-   * 5. customerTotal / finalBill = itemsSubtotal - discount + deliveryFee + platformFee + tax
-   */
-  public static calculateBill(
-    items: GenericBillItem[],
-    options: BillCalculationOptions = {}
-  ): CalculatedBillBreakdown {
-    let subtotal = 0;
-    let count = 0;
-
-    for (const item of items) {
-      if (item.isAvailable === false) continue;
-      const lineTotal = PricingEngine.calculateLineTotal(item);
-      subtotal += lineTotal;
-      count += Number(item.quantityCount !== undefined ? item.quantityCount : (item.quantity || 1));
-    }
-
-    const itemSubtotal = Math.round(subtotal * 100) / 100;
-    const discount = Math.max(0, Math.min(Math.round((options.discount || 0) * 100) / 100, itemSubtotal));
-
-    let deliveryFee = 0;
-    if (options.fulfillmentType === FulfillmentType.HOME_DELIVERY) {
-      if (options.freeDeliveryThreshold && itemSubtotal >= options.freeDeliveryThreshold) {
-        deliveryFee = 0;
-      } else {
-        deliveryFee = Math.max(0, Math.round((options.deliveryFee || 0) * 100) / 100);
-      }
-    } else {
-      // Store Pickup delivery fee is strictly ₹0
-      deliveryFee = 0;
-    }
-
-    const platformFee = Math.max(0, Math.round((options.platformFee ?? 0) * 100) / 100);
-    const taxRate = options.taxRatePercentage || 0;
-    const merchandiseBase = Math.max(0, itemSubtotal - discount);
-    const tax = Math.round((merchandiseBase * (taxRate / 100)) * 100) / 100;
-
-    const customerTotal = Math.max(0, Math.round((merchandiseBase + deliveryFee + platformFee + tax) * 100) / 100);
-
-    return {
-      itemSubtotal,
-      discount,
-      deliveryFee,
-      platformFee,
-      tax,
-      customerTotal,
-      finalBill: customerTotal,
-      itemCount: count,
-    };
-  }
-
-  /**
    * Computes the complete, strictly separated financial breakdown for an order.
    */
   public static calculateOrderFinancials(
@@ -366,36 +231,44 @@ export class PricingEngine {
       commissionOnPlatformFee?: boolean;
     }
   ): OrderFinancialBreakdown {
-    const bill = PricingEngine.calculateBill(items, {
-      fulfillmentType: FulfillmentType.HOME_DELIVERY,
-      deliveryFee: options.deliveryFee,
-      discount: options.discount,
-      platformFee: options.platformFee ?? 2.0,
-      taxRatePercentage: options.taxRatePercentage,
-    });
+    const itemSubtotal = items.reduce((sum, item) => sum + item.lineItemTotal, 0);
+    const roundedSubtotal = Math.round(itemSubtotal * 100) / 100;
 
-    const merchandiseBase = Math.max(0, bill.itemSubtotal - bill.discount);
+    const discount = Math.min(options.discount || 0, roundedSubtotal);
+    const deliveryFee = Math.max(0, options.deliveryFee);
+    const platformFee = Math.max(0, options.platformFee ?? 2.0);
+
+    const merchandiseBase = Math.max(0, roundedSubtotal - discount);
+    
+    // Commission base is merchandise subtotal minus discount.
+    // Delivery fee or platform fee are ONLY included if explicitly configured.
     let commissionEligibleBase = merchandiseBase;
     if (options.commissionOnDeliveryFee) {
-      commissionEligibleBase += bill.deliveryFee;
+      commissionEligibleBase += deliveryFee;
     }
     if (options.commissionOnPlatformFee) {
-      commissionEligibleBase += bill.platformFee;
+      commissionEligibleBase += platformFee;
     }
     commissionEligibleBase = Math.round(commissionEligibleBase * 100) / 100;
 
     const commissionPercentage = options.commissionPercentage;
     const commissionAmount = Math.round((commissionEligibleBase * (commissionPercentage / 100)) * 100) / 100;
 
-    const sellerNetAmount = Math.round((merchandiseBase + bill.deliveryFee - commissionAmount) * 100) / 100;
+    const taxRate = options.taxRatePercentage || 0;
+    const tax = Math.round((merchandiseBase * (taxRate / 100)) * 100) / 100;
+
+    const customerTotal = Math.round((merchandiseBase + deliveryFee + platformFee + tax) * 100) / 100;
+
+    // Seller Net Earnings: (merchandise revenue + delivery fee - platform commission)
+    const sellerNetAmount = Math.round((merchandiseBase + deliveryFee - commissionAmount) * 100) / 100;
 
     return {
-      itemSubtotal: bill.itemSubtotal,
-      discount: bill.discount,
-      deliveryFee: bill.deliveryFee,
-      platformFee: bill.platformFee,
-      tax: bill.tax,
-      customerTotal: bill.customerTotal,
+      itemSubtotal: roundedSubtotal,
+      discount: Math.round(discount * 100) / 100,
+      deliveryFee: Math.round(deliveryFee * 100) / 100,
+      platformFee: Math.round(platformFee * 100) / 100,
+      tax,
+      customerTotal,
       commissionBase: commissionEligibleBase,
       commissionPercentage,
       commissionAmount,

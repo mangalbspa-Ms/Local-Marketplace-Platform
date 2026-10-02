@@ -1107,7 +1107,7 @@ export const MASTER_KIRANA_CATALOG: KiranaMasterProduct[] = [
     id: 'prod_mungfali',
     category: 'ड्राई फ्रूट / मेवा / बीज',
     subcategory: 'मूंगफली',
-    canonicalNameHindi: 'मूंगफली',
+    canonicalNameHindi: 'मूंगफली दाना',
     canonicalNameEnglish: 'Peanuts / Groundnuts',
     searchableAliases: ['मूंगफली', 'मूंगफली दाना', 'सींगदाना', 'peanut', 'groundnut', 'peanuts', 'mungfali', 'moongfali'],
     commonSpokenNames: ['मूंगफली', 'मूंगफली दाना', 'peanut'],

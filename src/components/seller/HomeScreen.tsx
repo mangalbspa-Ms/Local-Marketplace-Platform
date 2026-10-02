@@ -40,7 +40,6 @@ import { ShoppingRequest, ShoppingRequestStatus } from '../../types/shoppingRequ
 import { useSellerAuth } from '../../context/SellerAuthContext.tsx';
 import { useSellerLanguage } from '../../context/SellerLanguageContext.tsx';
 import { SellerTab } from './common/SellerBottomNav.tsx';
-import { calculateOrderTotal } from '../../services/pricingEngine.ts';
 
 interface HomeScreenProps {
   orders: Order[];
@@ -101,7 +100,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // 5. Earnings & Low Stock Calculations
   const todayEarnings = completedOrders.reduce(
-    (sum, o) => sum + (o.financials?.sellerNetAmount || calculateOrderTotal(o)),
+    (sum, o) => sum + (o.financials?.sellerNetAmount || o.financials?.customerTotal || 0),
     0
   );
 
@@ -165,7 +164,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     );
 
     const sales = validOrders.reduce(
-      (sum, o) => sum + (o.financials?.sellerNetAmount || calculateOrderTotal(o)),
+      (sum, o) => sum + (o.financials?.sellerNetAmount || o.financials?.customerTotal || 0),
       0
     );
 
@@ -380,7 +379,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {pendingOrders.length > 0 ? (
           <div className="space-y-2">
             {pendingOrders.map((order) => {
-              const totalAmount = calculateOrderTotal(order);
+              const totalAmount =
+                order.financials?.customerTotal || order.financials?.sellerNetAmount || 0;
               const isProcessing = processingOrderId === order.id;
 
               return (
@@ -511,7 +511,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {packingOrders.length > 0 ? (
           <div className="space-y-2">
             {packingOrders.map((order) => {
-              const totalAmount = calculateOrderTotal(order);
+              const totalAmount =
+                order.financials?.customerTotal || order.financials?.sellerNetAmount || 0;
 
               return (
                 <div
@@ -606,7 +607,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           ) : (
             recentOrders.map((order) => {
               const firstItem = order.items?.[0];
-              const totalAmount = calculateOrderTotal(order);
+              const totalAmount =
+                order.financials?.customerTotal || order.financials?.sellerNetAmount || 0;
               const isConfirmed = order.status === OrderStatus.CONFIRMED;
               const isProcessing = processingOrderId === order.id;
 
@@ -1008,7 +1010,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="font-mono font-bold text-white text-xs">
-                        ₹{calculateOrderTotal(o).toFixed(0)}
+                        ₹{(o.financials?.customerTotal || o.financials?.sellerNetAmount || 0).toFixed(0)}
                       </span>
                       <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                     </div>

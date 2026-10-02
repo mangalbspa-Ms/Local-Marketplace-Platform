@@ -653,19 +653,12 @@ export const formatHindiShoppingItem = (
 
   // Case 3: Unit and Quantity formatting
   let unitHindi = 'पीस';
-  let formattedQty: number | string = qty;
   const unitLow = (item.unit || '').toLowerCase();
 
   if (unitLow === 'kg' || unitLow === 'किलो' || unitLow === 'kilogram') {
-    if (qty === 0.5 || origTextLow.includes('आधा किलो') || origTextLow.includes('aadha kilo')) {
-      formattedQty = 500;
-      unitHindi = 'ग्राम';
-    } else {
-      unitHindi = 'किलो';
-    }
-  } else if (unitLow === 'paav' || unitLow === 'पाव' || origTextLow.includes('पाव') || origTextLow.includes('paav')) {
-    formattedQty = 250;
-    unitHindi = 'ग्राम';
+    unitHindi = 'किलो';
+  } else if (unitLow === 'paav' || unitLow === 'पाव') {
+    unitHindi = 'पाव';
   } else if (unitLow === 'gram' || unitLow === 'ग्राम' || unitLow === 'gm' || unitLow === 'g') {
     unitHindi = 'ग्राम';
   } else if (unitLow === 'dozen' || unitLow === 'दर्जन') {
@@ -690,7 +683,7 @@ export const formatHindiShoppingItem = (
   }
 
   // Standard: [मात्रा] ~ [सामान का नाम]
-  const left = `${formattedQty} ${unitHindi}`;
+  const left = `${qty} ${unitHindi}`;
   const right = hindiName;
   return { left, right, line: `${left} ~ ${right}` };
 };
@@ -886,11 +879,10 @@ const CANONICAL_HINDI_DICTIONARY: Record<string, string> = {
   'makhana': 'फूल मखाना',
   'fox nuts': 'फूल मखाना',
   'mungfali dana': 'मूंगफली दाना',
-  'mungfali': 'मूंगफली',
-  'moongfali': 'मूंगफली',
-  'peanuts': 'मूंगफली',
-  'peanut': 'मूंगफली',
-  'मूंगफली': 'मूंगफली',
+  'mungfali': 'मूंगफली दाना',
+  'moongfali': 'मूंगफली दाना',
+  'peanuts': 'मूंगफली दाना',
+  'peanut': 'मूंगफली दाना',
   'akhrot giri': 'अखरोट गिरी',
   'akhrot': 'अखरोट गिरी',
   'walnut': 'अखरोट गिरी',
@@ -1335,9 +1327,7 @@ export const resolveProductDetails = (
     subName = undefined;
   } else if (canonicalHindiName === 'चाउमीन' || canonicalHindiName.includes('चाउमीन')) {
     displayName = 'चाउमीन';
-    if (isHalfPlate && qty > 1) {
-      subName = undefined;
-    } else if (isHalfPlate || origTextLow.includes('हाफ') || cleanTitleLow.includes('हाफ')) {
+    if (isHalfPlate || origTextLow.includes('हाफ') || cleanTitleLow.includes('हाफ')) {
       subName = 'हाफ प्लेट';
     } else if (isFullPlate || origTextLow.includes('फुल') || cleanTitleLow.includes('फुल')) {
       subName = 'फुल प्लेट';
@@ -1386,16 +1376,14 @@ export const resolveProductDetails = (
     displayQuantity = '½';
     displayUnit = 'दर्जन';
   } else if (
-    (unitHindi === 'किलो' || unitHindi === 'ग्राम') &&
-    (qty === 0.5 || qty === 500 || origTextLow.includes('आधा किलो') || origTextLow.includes('aadha kilo'))
+    unitHindi === 'किलो' &&
+    (qty === 0.5 || origTextLow.includes('आधा किलो') || origTextLow.includes('aadha kilo'))
   ) {
-    displayQuantity = 500;
-    displayUnit = 'ग्राम';
-    unitHindi = 'ग्राम';
+    displayQuantity = '½';
+    displayUnit = 'किलो';
   } else if (unitLow === 'paav' || unitLow === 'पाव' || reqPortionLow.includes('पाव') || origTextLow.includes('पाव')) {
-    displayQuantity = 250;
+    displayQuantity = 'पाव/250';
     displayUnit = 'ग्राम';
-    unitHindi = 'ग्राम';
   }
 
   // 6. Rate / Unit Price resolution
@@ -1812,7 +1800,7 @@ export const VoiceShoppingRequestModal: React.FC<VoiceShoppingRequestModalProps>
                 unitPrice: aiItem.unitPrice,
                 isPriceEstimated: !isMatched,
                 quantityCount: aiItem.quantity || 1,
-                quantityMultiplier: 1.0,
+                quantityMultiplier: aiItem.quantity || 1,
                 unitDisplay: aiItem.unitDisplay || '',
                 baseUnit: aiItem.unit || 'piece',
                 isCatalogMatch: isMatched,

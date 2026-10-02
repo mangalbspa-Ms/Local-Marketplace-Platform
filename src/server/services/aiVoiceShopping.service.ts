@@ -635,16 +635,16 @@ Return a JSON array of objects with schema:
       } else if (/^(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो)\s+(.+)$/i.test(text)) {
         const m = text.match(/^(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो)\s+(.+)$/i);
         rawItemName = this.cleanItemName(m![1]);
-        quantity = 500;
-        unit = isHindiScript ? 'ग्राम' : 'gram';
-        unitDisplay = isHindiScript ? '500 ग्राम' : '500 gram';
+        quantity = 0.5;
+        unit = isHindiScript ? 'किलो' : 'kg';
+        unitDisplay = isHindiScript ? '½ किलो' : '½ kg';
         itemType = 'weight';
       } else if (/^(.+?)\s+(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो)$/i.test(text)) {
         const m = text.match(/^(.+?)\s+(?:aadha|adha|आधा)\s*(?:kilo|kg|किलो)$/i);
         rawItemName = this.cleanItemName(m![1]);
-        quantity = 500;
-        unit = isHindiScript ? 'ग्राम' : 'gram';
-        unitDisplay = isHindiScript ? '500 ग्राम' : '500 gram';
+        quantity = 0.5;
+        unit = isHindiScript ? 'किलो' : 'kg';
+        unitDisplay = isHindiScript ? '½ किलो' : '½ kg';
         itemType = 'weight';
       } else if (/^(?:dedh|dhedh|डेढ़)\s*(?:kilo|kg|किलो)\s+(.+)$/i.test(text)) {
         const m = text.match(/^(?:dedh|dhedh|डेढ़)\s*(?:kilo|kg|किलो)\s+(.+)$/i);
@@ -660,11 +660,11 @@ Return a JSON array of objects with schema:
         unit = isHindiScript ? 'किलो' : 'kg';
         unitDisplay = isHindiScript ? '2.5 किलो' : '2.5 kg';
         itemType = 'weight';
-      } else if (/^(?:(?:ek|एक|1)\s+)?(?:paav|pao|पाव|pauwa|पौवा|पउवा)\s*(?:kilo|kg|किलो)?\s+(.+)$/i.test(text) || /^250\s*(?:gram|gm|gms|ग्राम)\s+(.+)$/i.test(text)) {
-        const m = text.match(/^(?:(?:ek|एक|1)\s+)?(?:paav|pao|पाव|pauwa|पौवा|पउवा)\s*(?:kilo|kg|किलो)?\s+(.+)$/i) || text.match(/^250\s*(?:gram|gm|gms|ग्राम)\s+(.+)$/i);
+      } else if (/^(?:(?:ek\s+)?(?:paav|pao|पाव)\s*(?:kilo|kg|किलो)?|250\s*(?:gram|gm|gms|ग्राम))\s+(.+)$/i.test(text)) {
+        const m = text.match(/^(?:(?:ek\s+)?(?:paav|pao|पाव)\s*(?:kilo|kg|किलो)?|250\s*(?:gram|gm|gms|ग्राम))\s+(.+)$/i);
         rawItemName = this.cleanItemName(m![1]);
-        quantity = 250;
-        unit = isHindiScript ? 'ग्राम' : 'gram';
+        quantity = 0.25;
+        unit = isHindiScript ? 'ग्राम' : 'kg';
         unitDisplay = isHindiScript ? '250 ग्राम' : '250 gram';
         itemType = 'weight';
       }
@@ -779,7 +779,7 @@ Return a JSON array of objects with schema:
     // 9. Bare number with product: "4 samosa", "2 kachori"
     if (!rawItemName) {
       const bareNumMatch = text.match(/^(\d+|ek|do|teen|char|chaar|paanch|panch|das|एक|दो|तीन|चार|पांच|पाँच|दस)\s+([a-zA-Z\u0900-\u097F\s]+)$/i);
-      if (bareNumMatch && !/^(?:paav|pao|पाव|pauwa|पौवा|पउवा)\b/i.test(bareNumMatch[2].trim())) {
+      if (bareNumMatch) {
         quantity = this.parseHindiNumber(bareNumMatch[1]);
         rawItemName = this.cleanItemName(bareNumMatch[2]);
         unit = isHindiScript ? 'पीस' : 'piece';

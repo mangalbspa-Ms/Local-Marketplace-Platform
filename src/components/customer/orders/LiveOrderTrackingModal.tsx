@@ -20,7 +20,6 @@ import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { customerApi } from '../../../services/customerApi.ts';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import {
   Package,
@@ -117,7 +116,7 @@ export const LiveOrderTrackingModal: React.FC<LiveOrderTrackingModalProps> = ({
   const isPickup = order.fulfillmentType === FulfillmentType.STORE_PICKUP;
   const isTerminal = order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
   const pickupPin = order.pickupCode;
-  const totalPayable = calculateOrderTotal(order);
+  const totalPayable = order.financials?.customerTotal ?? 0;
   const orderIdShort = `#ORD${order.id.slice(-6).toUpperCase()}`;
 
   // Timeline Steps

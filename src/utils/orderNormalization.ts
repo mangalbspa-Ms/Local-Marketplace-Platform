@@ -1,6 +1,5 @@
 import { Order, OrderStatus, FulfillmentType, OrderItem } from '../types/order.ts';
 import { ProductUnitType } from '../types/product.ts';
-import { calculateOrderTotal } from '../services/pricingEngine.ts';
 
 /**
  * Normalizes customer orders data to enforce strict "ONE SHOP ORDER = ONE SHOP CARD" architecture.
@@ -72,18 +71,11 @@ export function normalizeCustomerShopOrders(
     const deliveryFee = raw.financials?.deliveryFee ?? (raw.fulfillmentType === FulfillmentType.HOME_DELIVERY ? 20 : 0);
     const platformFee = raw.financials?.platformFee ?? 2;
     const discount = raw.financials?.discount ?? 0;
-    const customerTotal =
-      raw.financials?.customerTotal !== undefined && raw.financials.customerTotal > 0
-        ? raw.financials.customerTotal
-        : calculateOrderTotal(
-            { ...raw, items: sanitizedItems },
-            { deliveryFee, platformFee, discount }
-          );
+    const customerTotal = raw.financials?.customerTotal ?? Math.max(0, itemSubtotal + deliveryFee + platformFee - discount);
 
     const normalizedOrder: Order = {
       ...raw,
       items: sanitizedItems,
-      total: customerTotal,
       financials: {
         itemSubtotal,
         discount,

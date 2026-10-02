@@ -38,7 +38,6 @@ export interface RequestedVoiceItem {
 
 export interface FinalBillBreakdown {
   itemSubtotal: number;
-  discount?: number;
   deliveryFee: number;
   platformFee: number;
   customerTotal: number;
@@ -67,10 +66,7 @@ export interface ShoppingRequest {
   sellerNotes?: string;
   status: ShoppingRequestStatus;
   
-  // Optional draft bill saved by seller before sending
-  draftBill?: FinalBillBreakdown;
-
-  // Final bill fields populated by seller when sent
+  // Final bill fields populated by seller
   finalBill?: FinalBillBreakdown;
 
   // Associated order once paid
@@ -105,9 +101,7 @@ export interface CreateShoppingRequestDTO {
 
 export interface FinalizeBillDTO {
   deliveryFee?: number;
-  discount?: number;
   sellerNotes?: string;
-  isDraft?: boolean;
   items: Array<{
     id: string;
     productId?: string;

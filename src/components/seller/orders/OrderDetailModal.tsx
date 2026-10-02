@@ -28,7 +28,6 @@ import {
 import { Order, OrderStatus, FulfillmentType, OrderItem } from '../../../types/order.ts';
 import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface OrderDetailModalProps {
@@ -112,7 +111,10 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
     });
 
     const adjSubtotal = Math.max(0, origSubtotal - refund);
-    const adjCustomerTotal = calculateOrderTotal(order, { items: avail });
+    const adjCustomerTotal = Math.max(
+      0,
+      adjSubtotal + (order.financials.deliveryFee || 0) + (order.financials.platformFee || 0)
+    );
     const commissionPercent = order.financials.commissionPercentage || 5;
     const adjCommission = (adjSubtotal * commissionPercent) / 100;
     const adjSellerNet = Math.max(0, adjSubtotal - adjCommission);

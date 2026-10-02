@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface PackingScreenProps {
@@ -248,7 +247,7 @@ export const PackingScreen: React.FC<PackingScreenProps> = ({
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="font-mono font-black text-slate-900">
-                      ₹{calculateOrderTotal(currentOrder).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{currentOrder.financials.customerTotal.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 </div>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { Shop } from '../../../types/market.ts';
 import { customerApi } from '../../../services/customerApi.ts';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
 import { useCustomerCart } from '../../../context/CustomerCartContext.tsx';
 import { LiveOrderTrackingModal } from './LiveOrderTrackingModal.tsx';
@@ -128,7 +127,7 @@ export const ShopOrderDetailsScreen: React.FC<ShopOrderDetailsScreenProps> = ({
     order.status === OrderStatus.PREPARING
   );
 
-  const totalPayable = calculateOrderTotal(order);
+  const totalPayable = order.financials?.customerTotal ?? 0;
   const orderNumberDisplay = order.orderNumber || `#ORD-${order.id.slice(-6).toUpperCase()}`;
   const formattedDateTime = new Date(order.createdAt).toLocaleDateString(
     language === 'hi' ? 'hi-IN' : 'en-IN',

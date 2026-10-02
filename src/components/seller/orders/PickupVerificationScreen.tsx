@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus } from '../../../types/order.ts';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface PickupVerificationScreenProps {
@@ -177,7 +176,7 @@ export const PickupVerificationScreen: React.FC<PickupVerificationScreenProps> =
 
             <div className="text-right">
               <div className="font-mono font-black text-sm text-slate-900">
-                ₹{calculateOrderTotal(currentOrder).toFixed(2)}
+                ₹{currentOrder.financials.customerTotal.toFixed(2)}
               </div>
               <span className="text-[10px] text-slate-500">{currentOrder.items.length} items packed</span>
             </div>

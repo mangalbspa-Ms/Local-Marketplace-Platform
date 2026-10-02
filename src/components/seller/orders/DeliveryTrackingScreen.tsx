@@ -19,7 +19,6 @@ import {
 import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
 import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import confetti from 'canvas-confetti';
 
 interface DeliveryTrackingScreenProps {
@@ -149,7 +148,7 @@ export const DeliveryTrackingScreen: React.FC<DeliveryTrackingScreenProps> = ({
                   </div>
 
                   <span className="font-mono font-bold text-sm text-emerald-400">
-                    ₹{calculateOrderTotal(order).toFixed(2)}
+                    ₹{order.financials.customerTotal.toFixed(2)}
                   </span>
                 </div>
 

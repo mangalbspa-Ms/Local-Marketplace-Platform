@@ -227,117 +227,62 @@ export const ShoppingRequestDetailModal: React.FC<ShoppingRequestDetailModalProp
             <div className="space-y-2">
               <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
                 <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
-                <span>
-                  {isFinalized || isPaid
-                    ? (language === 'hi' ? 'सामान का फाइनल बिल विवरण' : 'Final Bill Items')
-                    : (language === 'hi' ? 'सामान का विवरण' : 'Requested Items')}
-                </span>
+                <span>{language === 'hi' ? 'सामान का फाइनल विवरण' : 'Final Itemized List'}</span>
               </span>
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl divide-y divide-slate-100 max-h-56 overflow-y-auto">
-                {isFinalized && finalBill && finalBill.items && finalBill.items.length > 0 ? (
-                  // Authoritative finalized bill items snapshot sent by seller
-                  finalBill.items.map((item, idx) => (
-                    <div
-                      key={item.productId || `item_${idx}`}
-                      className="p-2.5 flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
+                {request.items.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className={`p-2.5 flex items-center justify-between gap-2 ${
+                      !item.isAvailable ? 'opacity-50 bg-slate-100' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {item.productName}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="px-1.5 py-0.2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold rounded">
-                              {item.orderedQuantityDisplay || `${item.quantityCount} unit`}
-                            </span>
-                            {item.quantityCount > 1 && (
-                              <span className="text-[9px] text-slate-500 font-mono font-medium">
-                                ({item.quantityCount} × ₹{item.unitItemPriceCalculated})
-                              </span>
-                            )}
-                            {item.notes && (
-                              <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded font-medium">
-                                {item.notes}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-black text-slate-900 font-mono">
-                          ₹{item.lineItemTotal}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-bold text-slate-900 truncate ${!item.isAvailable ? 'line-through' : ''}`}>
+                          {item.matchedProductName || item.rawItemName}
                         </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  // Initial requested items
-                  request.items.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className={`p-2.5 flex items-center justify-between gap-2 ${
-                        !item.isAvailable ? 'opacity-50 bg-slate-100' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {idx + 1}
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-xs font-bold text-slate-900 truncate ${!item.isAvailable ? 'line-through' : ''}`}>
-                            {item.matchedProductName || item.rawItemName}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[9px] font-bold rounded">
-                              {item.unitDisplay}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[9px] font-bold rounded">
+                            {item.unitDisplay}
+                          </span>
+                          {item.sellerNote && (
+                            <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded font-medium">
+                              {item.sellerNote}
                             </span>
-                            {item.sellerNote && (
-                              <span className="text-[9px] text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded font-medium">
-                                {item.sellerNote}
-                              </span>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        {item.isAvailable ? (
-                          <p className="text-xs font-black text-slate-900 font-mono">
-                            ₹{item.lineTotal ?? item.unitPrice ?? '—'}
-                          </p>
-                        ) : (
-                          <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 text-[9px] font-bold rounded border border-rose-200">
-                            {language === 'hi' ? 'उपलब्ध नहीं' : 'Not Available'}
-                          </span>
-                        )}
-                      </div>
                     </div>
-                  ))
-                )}
+
+                    <div className="text-right">
+                      {item.isAvailable ? (
+                        <p className="text-xs font-black text-slate-900 font-mono">
+                          ₹{item.lineTotal ?? item.unitPrice ?? '—'}
+                        </p>
+                      ) : (
+                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 text-[9px] font-bold rounded border border-rose-200">
+                          {language === 'hi' ? 'उपलब्ध नहीं' : 'Not Available'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Financial Breakdown (if bill finalized) */}
-            {finalBill && isFinalized && (
+            {finalBill && (
               <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-2">
                 <div className="flex justify-between text-xs text-slate-600">
-                  <span>{language === 'hi' ? 'कुल सामान मूल्य (Subtotal):' : 'Items Subtotal:'}</span>
+                  <span>{language === 'hi' ? 'सामान का मूल्य:' : 'Items Total:'}</span>
                   <span className="font-bold text-slate-900 font-mono">₹{finalBill.itemSubtotal}</span>
                 </div>
-
-                {finalBill.discount !== undefined && finalBill.discount > 0 && (
-                  <div className="flex justify-between text-xs text-emerald-600 font-semibold">
-                    <span>{language === 'hi' ? 'छूट / डिस्काउंट:' : 'Discount:'}</span>
-                    <span className="font-bold font-mono">-₹{finalBill.discount}</span>
-                  </div>
-                )}
 
                 {request.fulfillmentType === FulfillmentType.HOME_DELIVERY && (
                   <div className="flex justify-between text-xs text-slate-600">
@@ -346,15 +291,8 @@ export const ShoppingRequestDetailModal: React.FC<ShoppingRequestDetailModalProp
                   </div>
                 )}
 
-                {finalBill.platformFee !== undefined && finalBill.platformFee > 0 && (
-                  <div className="flex justify-between text-xs text-slate-600">
-                    <span>{language === 'hi' ? 'प्लेटफॉर्म शुल्क:' : 'Platform Fee:'}</span>
-                    <span className="font-bold text-slate-900 font-mono">₹{finalBill.platformFee}</span>
-                  </div>
-                )}
-
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-black text-slate-900">
-                  <span>{language === 'hi' ? 'कुल भुगतान राशि (Payable):' : 'Total Amount to Pay:'}</span>
+                  <span>{language === 'hi' ? 'कुल भुगतान राशि:' : 'Total Amount to Pay:'}</span>
                   <span className="text-lg font-black text-emerald-700 font-mono">₹{finalBill.customerTotal}</span>
                 </div>
               </div>

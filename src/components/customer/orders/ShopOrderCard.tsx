@@ -3,7 +3,6 @@ import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { Shop } from '../../../types/market.ts';
 import { useCustomerLanguage } from '../../../context/CustomerLanguageContext.tsx';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import {
   ShieldCheck,
   Star,
@@ -34,7 +33,7 @@ export const ShopOrderCard: React.FC<ShopOrderCardProps> = ({
   const isPickup = isShopPickupOnly || (order.fulfillmentType === FulfillmentType.STORE_PICKUP && !isShopDeliveryOnly);
   const isTerminal =
     order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED;
-  const totalPayable = calculateOrderTotal(order);
+  const totalPayable = order.financials?.customerTotal ?? 0;
   const orderNumberDisplay = order.orderNumber || `#ORD-${order.id.slice(-6).toUpperCase()}`;
 
   // Use shop metadata with sensible fallbacks

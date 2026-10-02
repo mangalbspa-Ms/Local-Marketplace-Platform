@@ -21,7 +21,6 @@ import { Order, OrderStatus, FulfillmentType } from '../../../types/order.ts';
 import { OrderStatusBadge } from '../../common/OrderStatusBadge.tsx';
 import { useSellerLanguage } from '../../../context/SellerLanguageContext.tsx';
 import { groupOrdersByTimeSlot } from '../../../utils/orderTimeGroups.ts';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 
 interface OrdersScreenProps {
   orders: Order[];
@@ -208,7 +207,7 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                 {group.orders.map((order) => {
                   const isPickup = order.fulfillmentType === FulfillmentType.STORE_PICKUP;
                   const itemCount = order.items.length;
-                  const totalFormatted = calculateOrderTotal(order).toLocaleString('en-IN', {
+                  const totalFormatted = order.financials.customerTotal.toLocaleString('en-IN', {
                     maximumFractionDigits: 0,
                   });
 

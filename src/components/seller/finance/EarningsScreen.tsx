@@ -26,7 +26,6 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Order, OrderStatus } from '../../../types/order.ts';
-import { calculateOrderTotal } from '../../../services/pricingEngine.ts';
 import {
   SellerSettlement,
   SettlementStatus,
@@ -590,7 +589,7 @@ export const EarningsScreen: React.FC<EarningsScreenProps> = ({ orders }) => {
                       <span className="text-xs text-slate-400 font-medium">{ord.customerName}</span>
                     </div>
                     <div className="text-[11px] text-slate-400 font-mono">
-                      Gross: ₹{calculateOrderTotal(ord).toFixed(2)} • Comm ({ord.financials.commissionPercentage}%): -₹{ord.financials.commissionAmount.toFixed(2)}
+                      Gross: ₹{ord.financials.customerTotal.toFixed(2)} • Comm ({ord.financials.commissionPercentage}%): -₹{ord.financials.commissionAmount.toFixed(2)}
                     </div>
                   </div>
 
